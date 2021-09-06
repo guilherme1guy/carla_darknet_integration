@@ -1,2 +1,2 @@
 run:
-	python src/main.py --host 172.19.112.1
+	python darknet_integration --host 172.19.112.1
