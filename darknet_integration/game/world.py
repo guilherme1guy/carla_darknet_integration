@@ -2,7 +2,9 @@ import random
 import sys
 
 import carla
-from utils import find_weather_presets, get_actor_blueprints, get_actor_display_name
+import cv2
+import numpy as np
+import pygame
 from sensors import (
     CollisionSensor,
     GnssSensor,
@@ -10,6 +12,8 @@ from sensors import (
     LaneInvasionSensor,
     RadarSensor,
 )
+from utils import find_weather_presets, get_actor_blueprints, get_actor_display_name
+from yolo import YoloClassifier
 
 from game import CameraManager
 
@@ -61,6 +65,12 @@ class World(object):
             carla.MapLayer.Walls,
             carla.MapLayer.All,
         ]
+
+        self.yolo = YoloClassifier(
+            config="/home/gguy/code/darknet/cfg/yolov3.cfg",
+            weights="/home/gguy/code/darknet/yolov3.weights",
+            classes="/home/gguy/code/darknet/yolov3.txt",
+        )
 
     def restart(self):
         self.player_max_speed = 1.589
@@ -175,6 +185,15 @@ class World(object):
 
     def render(self, display):
         self.camera_manager.render(display)
+
+        cv_image = self.yolo.load_image_pygame(self.camera_manager.surface)
+        detection = self.yolo.classify(cv_image)
+        self.yolo.draw(detection)
+
+        new_surface = self.yolo.cvimage_to_pygame(detection.image)
+
+        display.blit(new_surface, (0, 0))
+
         self.hud.render(display)
 
     def destroy_sensors(self):
