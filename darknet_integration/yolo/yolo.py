@@ -32,6 +32,9 @@ class YoloClassifier(object):
         self.classes = classes
 
         self._net = cv2.dnn.readNet(self.weights, self.config)
+        self._net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+        self._net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+
         self._COLORS = np.random.uniform(0, 255, size=(len(self.classes), 3))
 
     def classify(self, image) -> YoloDetectionResult:
