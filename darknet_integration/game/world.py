@@ -1,3 +1,4 @@
+from darknet_integration.yolo.yolo import YoloClassifier
 import random
 import sys
 
@@ -11,10 +12,10 @@ from sensors import (
     IMUSensor,
     LaneInvasionSensor,
     RadarSensor,
+    YoloSensor,
 )
-from utils import find_weather_presets, get_actor_blueprints, get_actor_display_name
-from yolo import YoloClassifier
 
+from utils import find_weather_presets, get_actor_blueprints, get_actor_display_name
 from game import CameraManager
 
 
@@ -65,12 +66,6 @@ class World(object):
             carla.MapLayer.Walls,
             carla.MapLayer.All,
         ]
-
-        self.yolo = YoloClassifier(
-            config="/home/gguy/code/darknet/cfg/yolov3.cfg",
-            weights="/home/gguy/code/darknet/yolov3.weights",
-            classes="/home/gguy/code/darknet/yolov3.txt",
-        )
 
     def restart(self):
         self.player_max_speed = 1.589
@@ -131,6 +126,7 @@ class World(object):
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
         self.gnss_sensor = GnssSensor(self.player)
         self.imu_sensor = IMUSensor(self.player)
+        self.yolo_sensor = YoloSensor(self.player, self.hud)
         self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
         self.camera_manager.transform_index = cam_pos_index
         self.camera_manager.set_sensor(cam_index, notify=False)
@@ -186,17 +182,17 @@ class World(object):
     def render(self, display):
         self.camera_manager.render(display)
 
-        cv_image = self.yolo.load_image_pygame(self.camera_manager.surface)
-        detection = self.yolo.classify(cv_image)
-        self.yolo.draw(detection)
-
-        new_surface = self.yolo.cvimage_to_pygame(detection.image)
-
-        display.blit(new_surface, (0, 0))
+        try:
+            yolo_frame = self.yolo_sensor.last_results[-1]
+            if yolo_frame is not None:
+                display.blit(YoloClassifier.cvimage_to_pygame(yolo_frame.image), (0, 0))
+        except Exception as e:
+            print(e)
 
         self.hud.render(display)
 
     def destroy_sensors(self):
+        self.yolo_sensor.sensor.destroy()
         self.camera_manager.sensor.destroy()
         self.camera_manager.sensor = None
         self.camera_manager.index = None
