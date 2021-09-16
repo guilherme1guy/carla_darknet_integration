@@ -182,12 +182,9 @@ class World(object):
     def render(self, display):
         self.camera_manager.render(display)
 
-        try:
-            yolo_frame = self.yolo_sensor.last_results[-1]
-            if yolo_frame is not None:
-                display.blit(YoloClassifier.cvimage_to_pygame(yolo_frame.image), (0, 0))
-        except Exception as e:
-            print(e)
+        yolo_frame = self.yolo_sensor.last_result
+        if yolo_frame is not None:
+            display.blit(YoloClassifier.cvimage_to_pygame(yolo_frame.image), (0, 0))
 
         self.hud.render(display)
 

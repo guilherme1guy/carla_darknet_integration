@@ -28,12 +28,12 @@ class YoloSensor(object):
 
         self.sensor = world.spawn_actor(blueprint, transform, attach_to=self._parent)
 
-        self.last_results = []
+        self.last_result = None
 
         self.yolo = YoloClassifier(
             config="/home/gguy/code/darknet/cfg/yolov3.cfg",
             weights="/home/gguy/code/darknet/yolov3.weights",
-            classes="/home/gguy/code/darknet/yolov3.txt",
+            classes="/home/gguy/code/darknet/data/coco.names",
         )
 
         # We need to pass the lambda a weak reference to self to avoid circular
@@ -62,9 +62,7 @@ class YoloSensor(object):
 
         yolo.draw(result)
 
-        self.last_results.append(result)
-        if len(self.last_results) > 1000:
-            self.last_results.pop(0)
+        self.last_result = result
 
         # cv2.imwrite(f"_out/{data.timestamp}.jpg", result.image)
 

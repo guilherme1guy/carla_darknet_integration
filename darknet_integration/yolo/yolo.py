@@ -17,7 +17,6 @@ class YoloDetectionResult:
         self.boxes = []
         self.conf_threshold = conf_threshold
         self.nms_threshold = nms_threshold
-        self.indices = []
         self.image = image
 
 
@@ -29,106 +28,100 @@ class YoloClassifier(object):
 
         self.config = config
         self.weights = weights
-        self.classes = classes
+
+        with open(classes, "r") as f:
+            self.classes = [line.strip() for line in f.readlines()]
 
         self._net = cv2.dnn.readNet(self.weights, self.config)
         self._net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
         self._net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 
+        self.layers_names = self._net.getLayerNames()
+        self.output_layers = [
+            self.layers_names[i[0] - 1] for i in self._net.getUnconnectedOutLayers()
+        ]
         self._COLORS = np.random.uniform(0, 255, size=(len(self.classes), 3))
+
+    def detect_objects(self, img):
+        # https://towardsdatascience.com/object-detection-using-yolov3-and-opencv-19ee0792a420
+        blob = cv2.dnn.blobFromImage(
+            img,
+            scalefactor=0.00392,
+            size=(320, 320),
+            mean=(0, 0, 0),
+            swapRB=True,
+            crop=False,
+        )
+        self._net.setInput(blob)
+        outputs = self._net.forward(self.output_layers)
+        return blob, outputs
+
+    def get_box_dimensions(self, outputs, height, width, conf_threshold):
+
+        boxes = []
+        confs = []
+        class_ids = []
+
+        for output in outputs:
+            for detect in output:
+
+                scores = detect[5:]
+                class_id = np.argmax(scores)
+                conf = scores[class_id]
+
+                if conf > conf_threshold:
+
+                    center_x = int(detect[0] * width)
+                    center_y = int(detect[1] * height)
+
+                    w = int(detect[2] * width)
+                    h = int(detect[3] * height)
+                    x = int(center_x - w / 2)
+                    y = int(center_y - h / 2)
+
+                    boxes.append([x, y, w, h])
+                    confs.append(float(conf))
+                    class_ids.append(class_id)
+
+        return boxes, confs, class_ids
 
     def classify(self, image) -> YoloDetectionResult:
         # image must be cv2 image
 
-        width = image.shape[1]
         height = image.shape[0]
-        scale = 0.00392
+        width = image.shape[1]
 
-        blob = cv2.dnn.blobFromImage(
-            image, scale, (416, 416), (0, 0, 0), True, crop=False
-        )
-
-        self._net.setInput(blob)
-
-        outs = self._net.forward(self.get_output_layers(self._net))
+        blob, outs = self.detect_objects(image)
 
         result = YoloDetectionResult(image, conf_threshold=0.5, nms_threshold=0.4)
 
-        for out in outs:
-            for detection in out:
-                scores = detection[5:]
-                class_id = np.argmax(scores)
-                confidence = scores[class_id]
-                if confidence > 0.5:
-                    center_x = int(detection[0] * width)
-                    center_y = int(detection[1] * height)
-                    w = int(detection[2] * width)
-                    h = int(detection[3] * height)
-                    x = center_x - w / 2
-                    y = center_y - h / 2
-                    result.class_ids.append(class_id)
-                    result.confidences.append(float(confidence))
-                    result.boxes.append([x, y, w, h])
-
-        result.indices = cv2.dnn.NMSBoxes(
-            result.boxes,
-            result.confidences,
-            result.conf_threshold,
-            result.nms_threshold,
+        result.boxes, result.confidences, result.class_ids = self.get_box_dimensions(
+            outs, height, width, result.conf_threshold
         )
 
         return result
 
     def draw(self, detection: YoloDetectionResult):
-        # image must be a cv2 image
 
-        for i in detection.indices:
-            i = i[0]
-            box = detection.boxes[i]
-            x = box[0]
-            y = box[1]
-            w = box[2]
-            h = box[3]
-
-            self.draw_prediction(
-                detection.image,
-                detection.class_ids[i],
-                detection.confidences[i],
-                round(x),
-                round(y),
-                round(x + w),
-                round(y + h),
-            )
-
-        # cv2.imshow("object detection", image)
-        # cv2.waitKey()
-
-        # cv2.imwrite("object-detection.jpg", image)
-        # cv2.destroyAllWindows()
-
-    def draw_prediction(self, img, class_id, confidence, x, y, x_plus_w, y_plus_h):
-        # img must be a cv2 image
-
-        label = str(self.classes[class_id])
-
-        color = self._COLORS[class_id]
-
-        cv2.rectangle(img, (x, y), (x_plus_w, y_plus_h), color, 2)
-
-        cv2.putText(
-            img, label, (x - 10, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2
+        indexes = cv2.dnn.NMSBoxes(
+            detection.boxes,
+            detection.confidences,
+            detection.conf_threshold,
+            detection.nms_threshold,
         )
 
-        return img
+        font = cv2.FONT_HERSHEY_PLAIN
 
-    @staticmethod
-    def get_output_layers(net):
+        for i in range(len(detection.boxes)):
+            if i in indexes:
 
-        layer_names = net.getLayerNames()
+                x, y, w, h = detection.boxes[i]
 
-        output_layers = [layer_names[i[0] - 1] for i in net.getUnconnectedOutLayers()]
+                label = str(self.classes[detection.class_ids[i]])
+                color = self._COLORS[detection.class_ids[i]]
 
-        return output_layers
+                cv2.rectangle(detection.image, (x, y), (x + w, y + h), color, 2)
+                cv2.putText(detection.image, label, (x, y - 5), font, 1, color, 1)
 
     @staticmethod
     def load_image_file(filename):
