@@ -20,11 +20,11 @@ class YoloSensor(object):
         world = self._parent.get_world()
 
         blueprint = world.get_blueprint_library().find("sensor.camera.rgb")
-        blueprint.set_attribute("image_size_x", "640")
-        blueprint.set_attribute("image_size_y", "480")
+        blueprint.set_attribute("image_size_x", "1280")
+        blueprint.set_attribute("image_size_y", "720")
         blueprint.set_attribute("fov", "110")
 
-        transform = carla.Transform(carla.Location(x=0.8, z=1.7))
+        transform = carla.Transform(carla.Location(x=0.8, z=2))
 
         self.sensor = world.spawn_actor(blueprint, transform, attach_to=self._parent)
 
@@ -48,6 +48,7 @@ class YoloSensor(object):
         if not self:
             return
 
+        # https://github.com/carla-simulator/carla/blob/d23f3dc1340e47265eeea2b1b33b2d3a2d6d4f42/PythonAPI/examples/visualize_multiple_sensors.py#L170
         data.convert(carla.ColorConverter.Raw)
         array = np.frombuffer(data.raw_data, dtype=np.dtype("uint8"))
         array = np.reshape(array, (data.height, data.width, 4))
@@ -66,16 +67,15 @@ class YoloSensor(object):
 
         # cv2.imwrite(f"_out/{data.timestamp}.jpg", result.image)
 
-        j_data = {
-            "class_ids": result.class_ids,
-            "confidences": result.confidences,
-            "boxes": result.boxes,
-            "conf_threshold": result.conf_threshold,
-            "nms_threshold": result.nms_threshold,
-            "indices": result.indices,
-        }
+        # j_data = {
+        #     "class_ids": result.class_ids,
+        #    "confidences": result.confidences,
+        #    "boxes": result.boxes,
+        #    "conf_threshold": result.conf_threshold,
+        #    "nms_threshold": result.nms_threshold,
+        # }
 
-        print(j_data)
+        # print(j_data)
 
         # with open(f"_out/{data.timestamp}.json", "w") as file:
         #    file.write(json.dumps(j_data))
