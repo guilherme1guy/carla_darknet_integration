@@ -41,6 +41,7 @@ class World(object):
         self.imu_sensor = None
         self.radar_sensor = None
         self.camera_manager = None
+        self.yolo_sensor = None
         self._weather_presets = find_weather_presets()
         self._weather_index = 0
         self._actor_filter = args.filter
@@ -182,14 +183,13 @@ class World(object):
     def render(self, display):
         self.camera_manager.render(display)
 
-        yolo_frame = self.yolo_sensor.last_result
-        if yolo_frame is not None:
+        if not self.yolo_sensor.results.empty():
+            yolo_frame = self.yolo_sensor.results.get()
             display.blit(YoloClassifier.cvimage_to_pygame(yolo_frame.image), (0, 0))
 
         self.hud.render(display)
 
     def destroy_sensors(self):
-        self.yolo_sensor.sensor.destroy()
         self.camera_manager.sensor.destroy()
         self.camera_manager.sensor = None
         self.camera_manager.index = None
@@ -203,6 +203,7 @@ class World(object):
             self.lane_invasion_sensor.sensor,
             self.gnss_sensor.sensor,
             self.imu_sensor.sensor,
+            self.yolo_sensor,
         ]
         for sensor in sensors:
             if sensor is not None:
