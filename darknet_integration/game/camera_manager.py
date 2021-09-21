@@ -1,3 +1,6 @@
+from darknet_integration.sensors.yolo_sensor import YoloSensor
+import cv2
+from darknet_integration.yolo.yolo import YoloClassifier
 import weakref
 
 import carla
@@ -13,6 +16,7 @@ class CameraManager(object):
         self._parent = parent_actor
         self.hud = hud
         self.recording = False
+        self.yolo = YoloSensor()
         bound_x = 0.5 + self._parent.bounding_box.extent.x
         bound_y = 0.5 + self._parent.bounding_box.extent.y
         bound_z = 0.5 + self._parent.bounding_box.extent.z
@@ -127,6 +131,7 @@ class CameraManager(object):
                 },
             ],
             ["sensor.camera.optical_flow", cc.Raw, "Optical Flow", {}],
+            ["sensor.camera.rgb", cc.Raw, "Yolo Sensor", {"fov": "110"}],
         ]
         world = self._parent.get_world()
         bp_library = world.get_blueprint_library()
@@ -196,7 +201,7 @@ class CameraManager(object):
 
     @staticmethod
     def _parse_image(weak_self, image):
-        self = weak_self()
+        self: CameraManager = weak_self()
         if not self:
             return
         if self.sensors[self.index][0].startswith("sensor.lidar"):
@@ -240,11 +245,22 @@ class CameraManager(object):
             array = array[:, :, ::-1]
             self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
         else:
+
             image.convert(self.sensors[self.index][1])
             array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
             array = np.reshape(array, (image.height, image.width, 4))
             array = array[:, :, :3]
             array = array[:, :, ::-1]
-            self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+
+            if self.sensors[self.index][2] == "Yolo Sensor":
+
+                self.yolo.add_job(array, image.frame)
+                self.surface = self.yolo.get_surface()
+
+                if self.surface is None:
+                    self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
+
+            else:
+                self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
         if self.recording:
             image.save_to_disk("_out/%08d" % image.frame)

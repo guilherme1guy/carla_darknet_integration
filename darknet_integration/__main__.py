@@ -106,6 +106,7 @@ def game_loop(args):
                 sim_world.tick()
             clock.tick_busy_loop(60)
             if controller.parse_events(client, world, clock, args.sync):
+                world.camera_manager.yolo.stop()
                 return
             world.tick(clock)
             world.render(display)

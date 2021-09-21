@@ -9,6 +9,8 @@ import cv2
 import numpy as np
 import pygame
 
+from threading import Lock
+
 
 class YoloDetectionResult:
     def __init__(self, image, conf_threshold, nms_threshold):
@@ -32,6 +34,7 @@ class YoloClassifier(object):
         with open(classes, "r") as f:
             self.classes = [line.strip() for line in f.readlines()]
 
+        self._lock = Lock()
         self._net = cv2.dnn.readNet(self.weights, self.config)
         self._net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
         self._net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
@@ -40,6 +43,8 @@ class YoloClassifier(object):
         self.output_layers = [
             self.layers_names[i[0] - 1] for i in self._net.getUnconnectedOutLayers()
         ]
+
+        np.random.seed(0)
         self._COLORS = np.random.uniform(0, 255, size=(len(self.classes), 3))
 
     def detect_objects(self, img):
@@ -52,8 +57,11 @@ class YoloClassifier(object):
             swapRB=True,
             crop=False,
         )
-        self._net.setInput(blob)
-        outputs = self._net.forward(self.output_layers)
+
+        with self._lock:
+            self._net.setInput(blob)
+            outputs = self._net.forward(self.output_layers)
+
         return blob, outputs
 
     def get_box_dimensions(self, outputs, height, width, conf_threshold):
@@ -91,7 +99,7 @@ class YoloClassifier(object):
         height = image.shape[0]
         width = image.shape[1]
 
-        blob, outs = self.detect_objects(image)
+        _, outs = self.detect_objects(image)
 
         result = YoloDetectionResult(image, conf_threshold=0.5, nms_threshold=0.4)
 
