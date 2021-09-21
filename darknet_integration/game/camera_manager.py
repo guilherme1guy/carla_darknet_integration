@@ -132,6 +132,30 @@ class CameraManager(object):
             ],
             ["sensor.camera.optical_flow", cc.Raw, "Optical Flow", {}],
             ["sensor.camera.rgb", cc.Raw, "Yolo Sensor", {"fov": "110"}],
+            [
+                "sensor.camera.rgb",
+                cc.Raw,
+                "Yolo Sensor Distorted",
+                {
+                    "fov": "110",
+                    "lens_circle_multiplier": "3.0",
+                    "lens_circle_falloff": "3.0",
+                    "chromatic_aberration_intensity": "0.5",
+                    "chromatic_aberration_offset": "0",
+                },
+            ],
+            [
+                "sensor.camera.rgb",
+                cc.Raw,
+                "Yolo Sensor HD",
+                {"fov": "110", "image_size_x": "1920", "image_size_y": "1080"},
+            ],
+            [
+                "sensor.camera.rgb",
+                cc.Raw,
+                "Yolo Sensor (no effects)",
+                {"fov": "110", "enable_postprocess_effects": "False"},
+            ],
         ]
         world = self._parent.get_world()
         bp_library = world.get_blueprint_library()
@@ -252,7 +276,7 @@ class CameraManager(object):
             array = array[:, :, :3]
             array = array[:, :, ::-1]
 
-            if self.sensors[self.index][2] == "Yolo Sensor":
+            if "Yolo" in self.sensors[self.index][2]:
 
                 self.yolo.add_job(array, image.frame)
                 self.surface = self.yolo.get_surface()
