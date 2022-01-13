@@ -51,9 +51,11 @@ class YoloClassifier(object):
         # https://towardsdatascience.com/object-detection-using-yolov3-and-opencv-19ee0792a420
         blob = cv2.dnn.blobFromImage(
             img,
-            scalefactor=0.00392,
-            size=(320, 320),
+            scalefactor=1 / 255,
+            size=(416, 416),
             mean=(0, 0, 0),
+            # scalefactor=0.00392,
+            # size=(320, 320),
             swapRB=True,
             crop=False,
         )
