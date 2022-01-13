@@ -1,2 +1,4 @@
+HOST=$(shell ip addr show eth0 | grep -oP "(?<=inet\s)\d+(\.\d+){3}")
+
 run:
-	python darknet_integration --host 172.19.112.1
+	PYTHONPATH=./ python darknet_integration --filter vehicle.audi.a2 --host $(HOST)
