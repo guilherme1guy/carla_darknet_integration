@@ -57,11 +57,9 @@ class YoloSensor(object):
 
         # initialize classifier for this worker thread
         yolo_classifier = YoloClassifier(
-            config="/home/gguy/code/darknet/cfg/yolov3.cfg",
-            weights="/home/gguy/code/darknet/yolov3.weights",
-            # config="/home/gguy/code/darknet/cfg/yolov3-tiny.cfg",
-            # weights="/home/gguy/code/darknet/yolov3-tiny.weights",
-            classes="/home/gguy/code/darknet/data/coco.names",
+            config="models/yolov3.cfg",
+            weights="models/yolov3.weights",
+            classes="models/coco.names",
         )
 
         # worker main loop
