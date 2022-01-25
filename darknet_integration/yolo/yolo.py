@@ -152,7 +152,7 @@ class YoloClassifier(object):
         return img_bgr
 
     @staticmethod
-    def cvimage_to_pygame(image):
+    def image_to_pygame(image):
 
         im = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         im = np.rot90(np.fliplr(im))
