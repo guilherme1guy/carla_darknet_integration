@@ -1,6 +1,6 @@
 numpy==1.21.2
 carla==0.9.12
 matplotlib==3.4.3
-# opencv-python==4.5.3.56
-# opencv must be compiled locally fdr cuda
+# opencv-python==4.5.5
+# opencv must be compiled locally for cuda, check README.md
 pygame==2.0.1
