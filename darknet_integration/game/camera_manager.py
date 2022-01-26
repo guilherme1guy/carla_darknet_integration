@@ -1,6 +1,4 @@
-from darknet_integration.sensors.yolo_sensor import YoloSensor
-import cv2
-from darknet_integration.yolo.yolo import YoloClassifier
+from sensors.yolo_sensor import YoloSensor
 import weakref
 
 import carla

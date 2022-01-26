@@ -51,9 +51,9 @@ from carla import ColorConverter as cc
 
 import pygame
 
-from game import World
-from game.controls import KeyboardControl
-from gui import HUD
+from game.world import World
+from game.controls.keyboard_control import KeyboardControl
+from gui.hud import HUD
 from utils import get_doc
 
 

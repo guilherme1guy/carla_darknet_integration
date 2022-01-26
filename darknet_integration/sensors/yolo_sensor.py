@@ -13,9 +13,8 @@ import numpy as np
 
 from threading import Thread, local
 from queue import Empty, Queue
-from darknet_integration import yolo
 
-from darknet_integration.yolo import YoloClassifier, YoloDetectionResult
+from yolo.yolo import YoloClassifier
 
 
 class YoloSensor(object):

@@ -5,7 +5,8 @@ import os
 import pygame
 from utils import *
 
-from gui import FadingText, HelpText
+from gui.fading_text import FadingText
+from gui.help_text import HelpText
 
 
 class HUD(object):

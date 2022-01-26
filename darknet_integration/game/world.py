@@ -1,21 +1,16 @@
-from darknet_integration.yolo.yolo import YoloClassifier
 import random
 import sys
 
 import carla
-import cv2
-import numpy as np
-import pygame
-from sensors import (
-    CollisionSensor,
-    GnssSensor,
-    IMUSensor,
-    LaneInvasionSensor,
-    RadarSensor,
-)
+
+from sensors.collision_sensor import CollisionSensor
+from sensors.gnss_sensor import GnssSensor
+from sensors.imu_sensor import IMUSensor
+from sensors.lane_invasion_sensor import LaneInvasionSensor
+from sensors.radar_sensor import RadarSensor
 
 from utils import find_weather_presets, get_actor_blueprints, get_actor_display_name
-from game import CameraManager
+from game.camera_manager import CameraManager
 
 
 class World(object):
