@@ -41,7 +41,7 @@ class YoloClassifier(object):
 
         self.layers_names = self._net.getLayerNames()
         self.output_layers = [
-            self.layers_names[i[0] - 1] for i in self._net.getUnconnectedOutLayers()
+            self.layers_names[i - 1] for i in self._net.getUnconnectedOutLayers()
         ]
 
         np.random.seed(0)
