@@ -1,6 +1,6 @@
 # Obtaining opencv-python with CUDA support
 
-1. Follow steps 1 and 2 in [OpenCV-Python Package](https://pypi.org/project/opencv-python/#:~:text=the%20CI%20environment.-,Manual%20builds,delocate%20(same%20as%20auditwheel%20but%20for%20macOS)%20for%20better%20portability,-Manual%20debug%20builds);
+1. Follow steps 1 and 2 in **Manual Build** at [OpenCV-Python Package](https://pypi.org/project/opencv-python/#:~:text=the%20CI%20environment.-,Manual%20builds,delocate%20(same%20as%20auditwheel%20but%20for%20macOS)%20for%20better%20portability,-Manual%20debug%20builds);
 2. [Discover your GPU Compute Capability](https://developer.nvidia.com/cuda-gpus#compute). You will need to replace in the flag `-DCUDA_ARCH_BIN=<YOUR CUDA VERSION>` on step 3;
 3. Install dependencies:
    - [You MUST have CUDA installed on your system](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html)
