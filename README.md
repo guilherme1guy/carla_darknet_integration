@@ -43,3 +43,7 @@ Keyboard shortcuts:
 - *Other controls*: check the terminal output for default CARLA controls
 
 After starting the application you should see a window showing a car and the loaded map. You can manually control this vehicle or press **P** to use the autopilot. For the intended usage of this project it is recommended to use the autopilot, the Yolo Sensor View (press **1**) and the dashcam view (press **TAB** once).
+
+## Video
+
+[![Demo on Youtube](https://i3.ytimg.com/vi/YahcyJkUCWA/hqdefault.jpg)](https://www.youtube.com/watch?v=YahcyJkUCWA)
