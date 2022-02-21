@@ -5,6 +5,7 @@
 ############################################
 
 
+import enum
 from threading import Lock
 from typing import List
 
@@ -58,7 +59,6 @@ class YoloClassifier(object):
             detection = Detection.from_output(out)
 
             self.draw_on_image(image, detection)
-            # distance = self.distance_calculator.calc(*detection.bounding_box)
 
         return image
 
@@ -73,7 +73,10 @@ class YoloClassifier(object):
         # detection.x2 += 200
         # detection.y2 += 200
 
-        label = self.yolo_cfg.classes[detection.class_index]
+        label = [
+            f"{self.yolo_cfg.classes[detection.class_index]}",
+            f"{detection.distance}m - {detection.confidence*100:.2f}%",
+        ]
         color = self.yolo_cfg.colors[detection.class_index]
 
         # draw rectangle around detected object
@@ -88,22 +91,23 @@ class YoloClassifier(object):
         # draw rectangle for label
         cv2.rectangle(
             image,
-            (detection.x1 - 2, detection.y2 + 25),
+            (detection.x1 - 2, detection.y2 + 25 * len(label)),
             (detection.x2 + 2, detection.y2),
             color,
             -1,
         )
 
         # write label to image
-        image = cv2.putText(
-            image,
-            label,
-            (detection.x1 + 2, detection.y2 + 20),
-            cv2.FONT_HERSHEY_PLAIN,
-            1,
-            [225, 255, 255],
-            1,
-        )
+        for idx, line in enumerate(label):
+            image = cv2.putText(
+                image,
+                line,
+                (detection.x1 + 2, detection.y2 + 20 * (idx + 1)),
+                cv2.FONT_HERSHEY_PLAIN,
+                1,
+                [225, 255, 255],
+                1,
+            )
 
         # returns image with bounding box and label drawn on it
         return image
