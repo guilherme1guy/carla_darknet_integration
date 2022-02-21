@@ -13,6 +13,7 @@ import numpy as np
 
 from threading import Thread, local
 from queue import Empty, Queue
+from yolo.yolo_config import YoloV3Config
 
 from yolo.yolo import YoloClassifier
 
@@ -46,7 +47,7 @@ class YoloSensor(object):
 
             self.threads.append(worker_thread)
 
-    def work(self, thread_id):
+    def work(self, thread_id: int):
         """
         This function is the body of the worker thread, it keeps running until
         self.run is set to false
@@ -55,11 +56,7 @@ class YoloSensor(object):
         print(f"[t{thread_id}] Started thread")
 
         # initialize classifier for this worker thread
-        yolo_classifier = YoloClassifier(
-            config="models/yolov3.cfg",
-            weights="models/yolov3.weights",
-            classes="models/coco.names",
-        )
+        yolo_classifier = YoloClassifier(YoloV3Config())
 
         # worker main loop
         while self.run:
@@ -111,18 +108,14 @@ class YoloSensor(object):
 
         print(f"Joined all threads")
 
-    def job(self, yolo_classifier, array):
+    def job(self, yolo_classifier: YoloClassifier, array: np.ndarray):
         """
         Actual work that the worker thread must do
         """
         result = yolo_classifier.classify(cv2.cvtColor(array, cv2.COLOR_RGB2BGR))
-
-        # ask classifier object to draw the boxes on the resulting image
-        yolo_classifier.draw(result)
-
         return result
 
-    def add_job(self, array, frame):
+    def add_job(self, array: np.ndarray, frame_id: int):
         """
         Get image and add it to job queue
         """
@@ -130,7 +123,7 @@ class YoloSensor(object):
         if not self.run:
             return
 
-        self.jobs.put((array, frame, time.time()))
+        self.jobs.put((array, frame_id, time.time()))
         # print(f"Added job#{frame}, qsize: {self.jobs.qsize()}")
 
     def get_surface(self):
@@ -142,4 +135,4 @@ class YoloSensor(object):
         if len(self.results) < 1:
             return None
 
-        return YoloClassifier.image_to_pygame(self.results[-1].image)
+        return YoloClassifier.image_to_pygame(self.results[-1])

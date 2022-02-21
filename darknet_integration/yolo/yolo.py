@@ -5,133 +5,108 @@
 ############################################
 
 
+from threading import Lock
+from typing import List
+
 import cv2
 import numpy as np
 import pygame
+from pytorchyolo import detect, models
 
-from threading import Lock
-
-
-class YoloDetectionResult:
-    def __init__(self, image, conf_threshold, nms_threshold):
-        self.class_ids = []
-        self.confidences = []
-        self.boxes = []
-        self.conf_threshold = conf_threshold
-        self.nms_threshold = nms_threshold
-        self.image = image
+from yolo.detection import Detection
+from yolo.yolo_config import YoloConfig
 
 
 class YoloClassifier(object):
-    def __init__(self, config, weights, classes):
-        # config -> filename of config file
-        # weights -> filename of weights file
-        # classes -> filename of classes file
+    def __init__(self, yolo_cfg: YoloConfig, conf_threshold=0.5, nms_threshold=0.4):
 
-        self.config = config
-        self.weights = weights
-
-        with open(classes, "r") as f:
-            self.classes = [line.strip() for line in f.readlines()]
+        self.yolo_cfg = yolo_cfg
+        self.conf_threshold = conf_threshold
+        self.nms_threshold = nms_threshold
 
         self._lock = Lock()
-        self._net = cv2.dnn.readNet(self.weights, self.config)
-        self._net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
-        self._net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
 
-        self.layers_names = self._net.getLayerNames()
-        self.output_layers = [
-            self.layers_names[i - 1] for i in self._net.getUnconnectedOutLayers()
-        ]
-
-        np.random.seed(0)
-        self._COLORS = np.random.uniform(0, 255, size=(len(self.classes), 3))
-
-    def detect_objects(self, img):
-        # https://towardsdatascience.com/object-detection-using-yolov3-and-opencv-19ee0792a420
-        blob = cv2.dnn.blobFromImage(
-            img,
-            scalefactor=1 / 255,
-            size=(416, 416),
-            mean=(0, 0, 0),
-            # scalefactor=0.00392,
-            # size=(320, 320),
-            swapRB=True,
-            crop=False,
+        self.model = models.load_model(
+            self.yolo_cfg.cfg_file, self.yolo_cfg.weights_file
         )
+
+        self.model.eval()
+
+    def detect_objects(self, image) -> List[List]:
+
+        output = None
 
         with self._lock:
-            self._net.setInput(blob)
-            outputs = self._net.forward(self.output_layers)
+            output = detect.detect_image(
+                self.model,
+                image,
+                conf_thres=self.conf_threshold,
+                nms_thres=self.nms_threshold,
+            )
 
-        return blob, outputs
+        return output
 
-    def get_box_dimensions(self, outputs, height, width, conf_threshold):
-
-        boxes = []
-        confs = []
-        class_ids = []
-
-        for output in outputs:
-            for detect in output:
-
-                scores = detect[5:]
-                class_id = np.argmax(scores)
-                conf = scores[class_id]
-
-                if conf > conf_threshold:
-
-                    center_x = int(detect[0] * width)
-                    center_y = int(detect[1] * height)
-
-                    w = int(detect[2] * width)
-                    h = int(detect[3] * height)
-                    x = int(center_x - w / 2)
-                    y = int(center_y - h / 2)
-
-                    boxes.append([x, y, w, h])
-                    confs.append(float(conf))
-                    class_ids.append(class_id)
-
-        return boxes, confs, class_ids
-
-    def classify(self, image) -> YoloDetectionResult:
+    def classify(self, image):
         # image must be cv2 image
 
-        height = image.shape[0]
-        width = image.shape[1]
+        # Output is a numpy array in the following format:
+        # [[x1, y1, x2, y2, confidence, class]]
+        output = self.detect_objects(image)
 
-        _, outs = self.detect_objects(image)
+        for out in output:
 
-        result = YoloDetectionResult(image, conf_threshold=0.5, nms_threshold=0.4)
+            detection = Detection.from_output(out)
 
-        result.boxes, result.confidences, result.class_ids = self.get_box_dimensions(
-            outs, height, width, result.conf_threshold
+            self.draw_on_image(image, detection)
+            # distance = self.distance_calculator.calc(*detection.bounding_box)
+
+        return image
+
+    def draw_on_image(self, image, detection: Detection):
+        """
+        Draws the bounding box over the objects that the model detects
+        """
+
+        # as a personal choice you can modify this to get distance as accurate as possible:
+        # detection.x1 += 150
+        # detection.y1 += 100
+        # detection.x2 += 200
+        # detection.y2 += 200
+
+        label = self.yolo_cfg.classes[detection.class_index]
+        color = self.yolo_cfg.colors[detection.class_index]
+
+        # draw rectangle around detected object
+        image = cv2.rectangle(
+            image,
+            (detection.x1, detection.y1),
+            (detection.x2, detection.y2),
+            color,
+            1,
         )
 
-        return result
-
-    def draw(self, detection: YoloDetectionResult):
-
-        indexes = cv2.dnn.NMSBoxes(
-            detection.boxes,
-            detection.confidences,
-            detection.conf_threshold,
-            detection.nms_threshold,
+        # draw rectangle for label
+        cv2.rectangle(
+            image,
+            (detection.x1 - 2, detection.y2 + 25),
+            (detection.x2 + 2, detection.y2),
+            color,
+            -1,
         )
 
-        font = cv2.FONT_HERSHEY_PLAIN
+        # write label to image
+        image = cv2.putText(
+            image,
+            label,
+            (detection.x1 + 2, detection.y2 + 20),
+            cv2.FONT_HERSHEY_PLAIN,
+            1,
+            [225, 255, 255],
+            1,
+        )
 
-        for i in range(len(detection.boxes)):
-            if i in indexes:
-
-                x, y, w, h = detection.boxes[i]
-
-                label = str(self.classes[detection.class_ids[i]])
-                color = self._COLORS[detection.class_ids[i]]
-
-                cv2.rectangle(detection.image, (x, y), (x + w, y + h), color, 2)
-                cv2.putText(detection.image, label, (x, y - 5), font, 1, color, 1)
+        # returns image with bounding box and label drawn on it
+        return image
 
     @staticmethod
     def load_image_file(filename):
@@ -139,11 +114,11 @@ class YoloClassifier(object):
 
         return image
 
-    # based on https://gist.github.com/jpanganiban/3844261
-    # and https://stackoverflow.com/questions/53101698/how-to-convert-a-pygame-image-to-open-cv-image
-    # and https://www.reddit.com/r/pygame/comments/gldeqs/pygamesurfarrayarray3d_to_image_cv2/
     @staticmethod
     def load_image_pygame(surface):
+        # based on https://gist.github.com/jpanganiban/3844261
+        # and https://stackoverflow.com/questions/53101698/how-to-convert-a-pygame-image-to-open-cv-image
+        # and https://www.reddit.com/r/pygame/comments/gldeqs/pygamesurfarrayarray3d_to_image_cv2/
 
         view = pygame.surfarray.array3d(surface)
         view = view.transpose([1, 0, 2])
@@ -152,7 +127,7 @@ class YoloClassifier(object):
         return img_bgr
 
     @staticmethod
-    def image_to_pygame(image):
+    def image_to_pygame(image) -> pygame.Surface:
 
         im = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         im = np.rot90(np.fliplr(im))
