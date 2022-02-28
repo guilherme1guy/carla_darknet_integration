@@ -1,7 +1,9 @@
 from functools import cached_property
 from typing import List
 
-from yolo.distance_calculator import DistanceCalculator
+from yolo.distance_measure.simple_distance_calculator import (
+    DistanceCalculator,
+)
 
 
 class Detection:
