@@ -16,6 +16,7 @@ from queue import Empty, Queue
 from yolo.yolo_config import YoloV3Config
 
 from yolo.yolo import YoloClassifier
+from utils import image_to_pygame
 
 
 class YoloSensor(object):
@@ -136,3 +137,4 @@ class YoloSensor(object):
             return None
 
         return YoloClassifier.image_to_pygame(self.results[-1])
+        return image_to_pygame(latest_result[-1])

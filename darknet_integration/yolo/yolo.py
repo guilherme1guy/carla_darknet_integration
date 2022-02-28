@@ -111,30 +111,3 @@ class YoloClassifier(object):
 
         # returns image with bounding box and label drawn on it
         return image
-
-    @staticmethod
-    def load_image_file(filename):
-        image = cv2.imread(filename)
-
-        return image
-
-    @staticmethod
-    def load_image_pygame(surface):
-        # based on https://gist.github.com/jpanganiban/3844261
-        # and https://stackoverflow.com/questions/53101698/how-to-convert-a-pygame-image-to-open-cv-image
-        # and https://www.reddit.com/r/pygame/comments/gldeqs/pygamesurfarrayarray3d_to_image_cv2/
-
-        view = pygame.surfarray.array3d(surface)
-        view = view.transpose([1, 0, 2])
-        img_bgr = cv2.cvtColor(view, cv2.COLOR_RGB2BGR)
-
-        return img_bgr
-
-    @staticmethod
-    def image_to_pygame(image) -> pygame.Surface:
-
-        im = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        im = np.rot90(np.fliplr(im))
-        surface = pygame.surfarray.make_surface(im)
-
-        return surface
