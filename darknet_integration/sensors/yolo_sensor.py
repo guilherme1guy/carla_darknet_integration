@@ -19,8 +19,6 @@ from yolo.yolo import YoloClassifier
 from yolo.yolo_job import YoloJob
 from utils import image_to_pygame
 
-from sensors.camera_sensor import CameraSensor
-
 
 class YoloSensor(object):
     """
