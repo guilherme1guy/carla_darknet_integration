@@ -64,13 +64,6 @@ class World(object):
     def restart(self):
         self.player_max_speed = 1.589
         self.player_max_speed_fast = 3.713
-        # Keep same camera config if the camera manager exists.
-        cam_index = self.camera_manager.index if self.camera_manager is not None else 0
-        cam_pos_index = (
-            self.camera_manager.transform_index
-            if self.camera_manager is not None
-            else 0
-        )
         # Get a random blueprint.
         blueprint = random.choice(
             get_actor_blueprints(self.world, self._actor_filter, self._actor_generation)
@@ -120,9 +113,11 @@ class World(object):
         self.lane_invasion_sensor = LaneInvasionSensor(self.player, self.hud)
         self.gnss_sensor = GnssSensor(self.player)
         self.imu_sensor = IMUSensor(self.player)
+
+        if self.camera_manager is not None:
+            self.camera_manager.destroy()
         self.camera_manager = CameraManager(self.player, self.hud, self._gamma)
-        self.camera_manager.transform_index = cam_pos_index
-        self.camera_manager.set_sensor(cam_index, notify=False)
+
         actor_type = get_actor_display_name(self.player)
         self.hud.notification(actor_type)
 

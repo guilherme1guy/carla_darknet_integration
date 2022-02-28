@@ -130,7 +130,9 @@ class KeyboardControl(object):
                     index_ctrl = 0
                     if pygame.key.get_mods() & KMOD_CTRL:
                         index_ctrl = 9
-                    world.camera_manager.set_sensor(event.key - 1 - K_0 + index_ctrl)
+                    world.camera_manager.set_sensor(
+                        None, index=event.key - 1 - K_0 + index_ctrl
+                    )
                 elif event.key == K_r and not (pygame.key.get_mods() & KMOD_CTRL):
                     world.camera_manager.toggle_recording()
                 elif event.key == K_r and (pygame.key.get_mods() & KMOD_CTRL):
