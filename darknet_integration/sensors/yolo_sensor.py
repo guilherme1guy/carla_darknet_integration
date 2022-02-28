@@ -16,7 +16,10 @@ from queue import Empty, Queue
 from yolo.yolo_config import YoloV3Config
 
 from yolo.yolo import YoloClassifier
+from yolo.yolo_job import YoloJob
 from utils import image_to_pygame
+
+from sensors.camera_sensor import CameraSensor
 
 
 class YoloSensor(object):
@@ -34,8 +37,8 @@ class YoloSensor(object):
 
     def __init__(self):
 
-        self.jobs = Queue()
-        self.results = []
+        self.jobs: Queue[YoloJob] = Queue()
+        self.results: list[List[np.ndarray]] = []
 
         self.run = True
 
@@ -65,33 +68,26 @@ class YoloSensor(object):
             # try to get a new image
             try:
                 # start_time -> when was this image created on the simulation?
-                image_array, frame_id, start_time = self.jobs.get(timeout=1)
+                job = self.jobs.get(timeout=1)
             except Empty:
                 continue
 
-            # current time
-            local_start_time = time.time()
-
             # if the image is older than 0.1, discard it
-            if local_start_time - start_time > 0.1:
+            if not job.start_and_check():
                 continue
 
             # run job
-            self.results.append(self.job(yolo_classifier, image_array))
+            self.results.append(self.run_job(yolo_classifier, job))
 
-            # collect data for performance analysis
-            end_time = time.time()
+            job.end_job()
 
+            # delete oldest result if we have more than 255
             if len(self.results) > 255:
                 self.results.pop(0)
 
-            local_delta = round(end_time - local_start_time, 3)
-            delta = round(end_time - start_time, 3)
-            fps = round(1 / delta, 2)
-
             print(
-                f"[t{thread_id}] Finished job#{frame_id}\
-                 localDetal: {local_delta}s delta: {delta}s fps: {fps} qsize: {self.jobs.qsize()}"
+                f"[t{thread_id}] Finished job#{job.frame_id} \
+                localDetal: {job.local_delta}s delta: {job.delta}s fps: {job.fps} qsize: {self.jobs.qsize()}"
             )
 
         print(f"[t{thread_id}] Finished thread")
@@ -109,14 +105,15 @@ class YoloSensor(object):
 
         print(f"Joined all threads")
 
-    def job(self, yolo_classifier: YoloClassifier, array: np.ndarray):
+    def run_job(
+        self, yolo_classifier: YoloClassifier, job: YoloJob
+    ) -> List[np.ndarray]:
         """
         Actual work that the worker thread must do
         """
-        result = yolo_classifier.classify(cv2.cvtColor(array, cv2.COLOR_RGB2BGR))
-        return result
+        return yolo_classifier.classify(job.cv2_images)
 
-    def add_job(self, array: np.ndarray, frame_id: int):
+    def add_job(self, array: List[np.ndarray], frame_id: int):
         """
         Get image and add it to job queue
         """
@@ -124,7 +121,7 @@ class YoloSensor(object):
         if not self.run:
             return
 
-        self.jobs.put((array, frame_id, time.time()))
+        self.jobs.put(YoloJob(array, frame_id, time.time()))
         # print(f"Added job#{frame}, qsize: {self.jobs.qsize()}")
 
     def get_surface(self):
@@ -136,5 +133,6 @@ class YoloSensor(object):
         if len(self.results) < 1:
             return None
 
-        return YoloClassifier.image_to_pygame(self.results[-1])
+        latest_result = self.results[-1]
+
         return image_to_pygame(latest_result[-1])

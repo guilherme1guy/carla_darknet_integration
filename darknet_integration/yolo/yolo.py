@@ -1,21 +1,19 @@
-#############################################
-# Object detection - YOLO - OpenCV
-# Author : Arun Ponnusamy   (July 16, 2018)
-# Website : http://www.arunponnusamy.com
-############################################
-
-
 import enum
+import io
+from tempfile import SpooledTemporaryFile
 from threading import Lock
 from typing import List
 
 import cv2
 import numpy as np
 import pygame
+import torch
 from pytorchyolo import detect, models
 
 from yolo.detection import Detection
 from yolo.yolo_config import YoloConfig
+
+cuda_lock = Lock()
 
 
 class YoloClassifier(object):
@@ -25,42 +23,41 @@ class YoloClassifier(object):
         self.conf_threshold = conf_threshold
         self.nms_threshold = nms_threshold
 
-        self._lock = Lock()
-
         self.model = models.load_model(
             self.yolo_cfg.cfg_file, self.yolo_cfg.weights_file
         )
 
-        self.model.eval()
+    def detect_objects(self, images: List[np.ndarray]) -> List[List]:
 
-    def detect_objects(self, image) -> List[List]:
+        outputs = []
 
-        output = None
+        for image in images:
+            with cuda_lock:
+                output = detect.detect_image(
+                    self.model,
+                    image,
+                    conf_thres=self.conf_threshold,
+                    nms_thres=self.nms_threshold,
+                )
 
-        with self._lock:
-            output = detect.detect_image(
-                self.model,
-                image,
-                conf_thres=self.conf_threshold,
-                nms_thres=self.nms_threshold,
-            )
+                outputs.append(output)
 
-        return output
+        return outputs
 
-    def classify(self, image):
+    def classify(self, images: List[np.ndarray]) -> List[np.ndarray]:
         # image must be cv2 image
 
-        # Output is a numpy array in the following format:
+        # Output is a list with a numpy array for each image
+        # with the following format:
         # [[x1, y1, x2, y2, confidence, class]]
-        output = self.detect_objects(image)
+        outputs = self.detect_objects(images)
 
-        for out in output:
+        for index, output in enumerate(outputs):
+            for out in output:
+                detection = Detection.from_output(out)
+                self.draw_on_image(images[index], detection)
 
-            detection = Detection.from_output(out)
-
-            self.draw_on_image(image, detection)
-
-        return image
+        return images
 
     def draw_on_image(self, image, detection: Detection):
         """
