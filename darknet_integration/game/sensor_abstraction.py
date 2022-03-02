@@ -1,8 +1,9 @@
-from ctypes import Union
 import typing
-from typing import Optional, Union
+from typing import Optional
+import weakref
 
 import carla
+from game.camera_parser import CameraParser
 
 from game.transform_data import TransformData
 
@@ -22,7 +23,7 @@ class SensorAbstraction:
         self._sensor: Optional[carla.Sensor] = None
 
     def spawn(
-        self, parent: carla.Actor, transform_data: TransformData
+        self, parent: carla.Actor, transform_data: TransformData, parser: CameraParser
     ) -> "SensorAbstraction":
 
         world: carla.World = typing.cast(carla.World, parent.get_world())
@@ -32,6 +33,15 @@ class SensorAbstraction:
             transform_data.transform,
             attach_to=parent,
             attachment_type=transform_data.attachment_type,
+        )
+
+        # We need to pass the lambda as a weak reference to avoid a circular reference
+        # setup listener for sensor
+        weak_ref = weakref.ref(parser)
+        self.listen(
+            lambda image: CameraParser.parse_image(
+                weak_ref, image, self.sensor_type, self.name, self.color_convert
+            )
         )
 
         return self

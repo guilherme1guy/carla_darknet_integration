@@ -1,16 +1,10 @@
-from asyncio import FastChildWatcher
-from cgitb import reset
 from functools import cached_property
-import queue
-import weakref
-from typing import List, Optional
+from typing import List
 
 import carla
-import numpy as np
-import pygame
 from carla import ColorConverter as cc
-from sensors.yolo_sensor import YoloSensor
 
+from game.camera_parser import CameraParser
 from game.sensor_abstraction import SensorAbstraction
 from game.transform_data import TransformData
 
@@ -34,20 +28,20 @@ class CameraManager(object):
     def __init__(self, parent_actor, hud, gamma_correction):
 
         self.sensor: SensorAbstraction = None
-        self.surface = None
 
         self._parent = parent_actor
 
         self.hud = hud
 
-        self.recording = False
-
-        self.yolo = YoloSensor()
-
         self.transform_index = 0
 
         self.sensors: List[SensorAbstraction] = []
         self.initialize_sensors(gamma_correction)
+
+        # using getattr to avoid errors when the lidar sensor is not used
+        self.camera_parser: CameraParser = CameraParser(
+            self.hud.dim, getattr(self, "lidar_range", 50)
+        )
 
         self.next_sensor()
 
@@ -149,13 +143,10 @@ class CameraManager(object):
             self.surface = None
 
         self.sensor = sensor_abstraction.spawn(
-            self._parent, self._camera_transforms[self.transform_index]
+            self._parent,
+            self._camera_transforms[self.transform_index],
+            self.camera_parser,
         )
-
-        # We need to pass the lambda a weak reference to self to avoid
-        # circular reference.
-        weak_self = weakref.ref(self)
-        self.sensor.listen(lambda image: CameraManager._parse_image(weak_self, image))
 
         if notify:
             self.hud.notification(sensor_abstraction.name)
@@ -188,6 +179,9 @@ class CameraManager(object):
         self.sensor = CameraManager._SENSORS[0]
         self.set_sensor(self.sensor)
 
+    def stop(self):
+        self.camera_parser.yolo.stop()
+
     def destroy(self):
         if self.sensor is not None:
             self.sensor.destroy()
@@ -195,79 +189,12 @@ class CameraManager(object):
             self.surface = None
 
     def toggle_recording(self):
-        self.recording = not self.recording
-        self.hud.notification("Recording %s" % ("On" if self.recording else "Off"))
+        self.camera_parser.recording = not self.camera_parser.recording
+        self.hud.notification(f"Recording {self.camera_parser.recording}")
 
     def render(self, display):
-        if self.surface is not None:
-            display.blit(self.surface, (0, 0))
 
-    @staticmethod
-    def _parse_image(weak_self, image):
+        surface = self.camera_parser.get_surface()
 
-        self: CameraManager = weak_self()
-
-        if not self:
-            return
-
-        if self.sensor.sensor_type.startswith("sensor.lidar"):
-            points = np.frombuffer(image.raw_data, dtype=np.dtype("f4"))
-            points = np.reshape(points, (int(points.shape[0] / 4), 4))
-            lidar_data = np.array(points[:, :2])
-            lidar_data *= min(self.hud.dim) / (2.0 * self.lidar_range)
-            lidar_data += (0.5 * self.hud.dim[0], 0.5 * self.hud.dim[1])
-            lidar_data = np.fabs(lidar_data)  # pylint: disable=E1111
-            lidar_data = lidar_data.astype(np.int32)
-            lidar_data = np.reshape(lidar_data, (-1, 2))
-            lidar_img_size = (self.hud.dim[0], self.hud.dim[1], 3)
-            lidar_img = np.zeros((lidar_img_size), dtype=np.uint8)
-            lidar_img[tuple(lidar_data.T)] = (255, 255, 255)
-            self.surface = pygame.surfarray.make_surface(lidar_img)
-        elif self.sensor.sensor_type.startswith("sensor.camera.dvs"):
-            # Example of converting the raw_data from a carla.DVSEventArray
-            # sensor into a NumPy array and using it as an image
-            dvs_events = np.frombuffer(
-                image.raw_data,
-                dtype=np.dtype(
-                    [
-                        ("x", np.uint16),
-                        ("y", np.uint16),
-                        ("t", np.int64),
-                        ("pol", np.bool8),
-                    ]
-                ),
-            )
-            dvs_img = np.zeros((image.height, image.width, 3), dtype=np.uint8)
-            # Blue is positive, red is negative
-            dvs_img[
-                dvs_events[:]["y"], dvs_events[:]["x"], dvs_events[:]["pol"] * 2
-            ] = 255
-            self.surface = pygame.surfarray.make_surface(dvs_img.swapaxes(0, 1))
-        elif self.sensor.sensor_type.startswith("sensor.camera.optical_flow"):
-            image = image.get_color_coded_flow()
-            array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-            array = np.reshape(array, (image.height, image.width, 4))
-            array = array[:, :, :3]
-            array = array[:, :, ::-1]
-            self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-        else:
-
-            image.convert(self.sensor.color_convert)
-            array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
-            array = np.reshape(array, (image.height, image.width, 4))
-            array = array[:, :, :3]
-            array = array[:, :, ::-1]
-
-            if "Yolo" in self.sensor.name:
-
-                self.yolo.add_job([array], image.frame)
-                self.surface = self.yolo.get_surface()
-
-                if self.surface is None:
-                    self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-
-            else:
-                self.surface = pygame.surfarray.make_surface(array.swapaxes(0, 1))
-
-        if self.recording:
-            image.save_to_disk("_out/%08d" % image.frame)
+        if surface is not None:
+            display.blit(surface, (0, 0))
