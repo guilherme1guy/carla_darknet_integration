@@ -28,6 +28,12 @@ class SensorAbstraction:
 
         world: carla.World = typing.cast(carla.World, parent.get_world())
 
+        self._create_actor(world, transform_data, parent)
+        self._create_listener(parser)
+
+        return self
+
+    def _create_actor(self, world, transform_data, parent):
         self._sensor = world.spawn_actor(
             self.blueprint,
             transform_data.transform,
@@ -35,6 +41,7 @@ class SensorAbstraction:
             attachment_type=transform_data.attachment_type,
         )
 
+    def _create_listener(self, parser: CameraParser):
         # We need to pass the lambda as a weak reference to avoid a circular reference
         # setup listener for sensor
         weak_ref = weakref.ref(parser)
@@ -43,8 +50,6 @@ class SensorAbstraction:
                 weak_ref, image, self.sensor_type, self.name, self.color_convert
             )
         )
-
-        return self
 
     def stop(self) -> None:
 

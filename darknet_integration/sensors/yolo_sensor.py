@@ -1,23 +1,16 @@
-import collections
-import io
-import math
 from typing import List
-import weakref
-import queue
 
-import carla
-import cv2
-import json
 import time
+import cv2
 import numpy as np
 
-from threading import Thread, local
+from threading import Thread
 from queue import Empty, Queue
 from yolo.yolo_config import YoloV3Config
 
 from yolo.yolo import YoloClassifier
 from yolo.yolo_job import YoloJob
-from utils import image_to_pygame
+from utils import image_to_pygame, numpy_to_cv2
 
 
 class YoloSensor(object):
@@ -85,7 +78,10 @@ class YoloSensor(object):
 
             print(
                 f"[t{thread_id}] Finished job#{job.frame_id} \
-                localDetal: {job.local_delta}s delta: {job.delta}s fps: {job.fps} qsize: {self.jobs.qsize()}"
+                localDetal: {job.local_delta}s \
+                ({int(job.local_delta/job.delta * 100)}%) \
+                delta: {job.delta}s \
+                fps: {job.fps} qsize: {self.jobs.qsize()}"
             )
 
         print(f"[t{thread_id}] Finished thread")
@@ -133,4 +129,9 @@ class YoloSensor(object):
 
         latest_result = self.results[-1]
 
-        return image_to_pygame(latest_result[-1])
+        if len(latest_result) > 1:
+            unified_image = np.concatenate(latest_result, axis=1)
+            resized = cv2.resize(unified_image, dsize=(1900, 1020))
+            return image_to_pygame(resized)
+
+        return image_to_pygame(np.concatenate(latest_result, axis=1))

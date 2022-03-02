@@ -6,6 +6,7 @@ from carla import ColorConverter as cc
 
 from game.camera_parser import CameraParser
 from game.sensor_abstraction import SensorAbstraction
+from game.stereo_sensor_abstraction import StereoSensorAbstraction
 from game.transform_data import TransformData
 
 
@@ -14,15 +15,10 @@ class CameraManager(object):
     # sensor name should be unique
     _SENSORS = [
         SensorAbstraction("sensor.camera.rgb", cc.Raw, "Camera RGB", {}),
-        SensorAbstraction(
-            "sensor.camera.rgb", cc.Raw, "Yolo Sensor", {}
-        ),  # {"fov": "110"},
-        # SensorGroup(
-        #     [
-        #         SensorData("sensor.camera.rgb", cc.Raw, "Yolo Sensor C1", {}),
-        #         SensorData("sensor.camera.rgb", cc.Raw, "Yolo Sensor C2", {}),
-        #     ]
-        # ),
+        SensorAbstraction("sensor.camera.rgb", cc.Raw, "Yolo Sensor", {}),
+        StereoSensorAbstraction(
+            "sensor.camera.rgb", cc.Raw, "Yolo Sensor Stereo", (0, 0.635, 0), {}
+        ),
     ]
 
     def __init__(self, parent_actor, hud, gamma_correction):

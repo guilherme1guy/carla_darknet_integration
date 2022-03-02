@@ -112,10 +112,15 @@ def load_image_pygame(surface):
     return img_bgr
 
 
-def image_to_pygame(image) -> pygame.Surface:
-
+def numpy_to_cv2(image):
     im = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     im = np.rot90(np.fliplr(im))
-    surface = pygame.surfarray.make_surface(im)
+
+    return im
+
+
+def image_to_pygame(image) -> pygame.Surface:
+
+    surface = pygame.surfarray.make_surface(numpy_to_cv2(image))
 
     return surface

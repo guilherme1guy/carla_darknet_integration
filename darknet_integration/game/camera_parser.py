@@ -1,4 +1,4 @@
-from typing import Optional, Tuple
+from typing import Any, List, Optional, Tuple
 import weakref
 import numpy as np
 import pygame
@@ -87,9 +87,7 @@ class CameraParser:
         return pygame.surfarray.make_surface(array.swapaxes(0, 1))
 
     @staticmethod
-    def _parse_rgb_camera(
-        image, color_convert, sensor_name, yolo: Optional[YoloSensor] = None
-    ) -> pygame.surface:
+    def _rgb_image_to_array(image, color_convert):
         image.convert(color_convert)
 
         array = np.frombuffer(image.raw_data, dtype=np.dtype("uint8"))
@@ -97,15 +95,26 @@ class CameraParser:
         array = array[:, :, :3]
         array = array[:, :, ::-1]
 
-        if "Yolo" in sensor_name and yolo is not None:
+        return array
 
-            yolo.add_job([array], image.frame)
+    @staticmethod
+    def _parse_rgb_camera(
+        images: List[Any], color_convert, yolo: Optional[YoloSensor] = None
+    ) -> pygame.surface:
+
+        arrays = [
+            CameraParser._rgb_image_to_array(image, color_convert) for image in images
+        ]
+
+        if yolo is not None:
+
+            yolo.add_job(arrays, images[0].frame)
             surface = yolo.get_surface()
 
             if surface is not None:
                 return surface
 
-        return pygame.surfarray.make_surface(array.swapaxes(0, 1))
+        return pygame.surfarray.make_surface(arrays[0].swapaxes(0, 1))
 
     @staticmethod
     def parse_image(weak_self, image, sensor_type, sensor_name, color_convert):
@@ -126,10 +135,27 @@ class CameraParser:
 
         else:
             new_surface = CameraParser._parse_rgb_camera(
-                image, color_convert, sensor_name, self.yolo
+                [image], color_convert, (self.yolo if "Yolo" in sensor_name else None)
             )
 
         self.set_surface(new_surface)
 
         if self.recording:
             image.save_to_disk("_out/%08d" % image.frame)
+
+    @staticmethod
+    def parse_stereo_image(weak_self, images, sensor_type, sensor_name, color_convert):
+
+        self: CameraParser = weak_self()
+
+        if not self:
+            return
+
+        # this methoud is only used in yolo mode
+        new_surface = CameraParser._parse_rgb_camera(images, color_convert, self.yolo)
+
+        self.set_surface(new_surface)
+
+        if self.recording:
+            for index, image in enumerate(images):
+                image.save_to_disk(f"_out/{'%08d' % image.frame}_{index}")
