@@ -17,7 +17,15 @@ class CameraManager(object):
         SensorAbstraction("sensor.camera.rgb", cc.Raw, "Camera RGB", {}),
         SensorAbstraction("sensor.camera.rgb", cc.Raw, "Yolo Sensor", {}),
         StereoSensorAbstraction(
-            "sensor.camera.rgb", cc.Raw, "Yolo Sensor Stereo", (0, 0.635, 0), {}
+            "sensor.camera.rgb",
+            cc.Raw,
+            "Yolo Sensor Stereo",
+            (0, 0.635, 0),
+            {
+                "fov": "60",
+                "image_size_x": "800",
+                "image_size_y": "600",
+            },
         ),
     ]
 
