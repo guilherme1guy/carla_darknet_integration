@@ -3,8 +3,7 @@ from typing import List
 
 import cv2
 import numpy as np
-import torch
-from pytorchyolo import detect, models
+from torch import classes
 
 from yolo.detection import Detection
 from yolo.yolo_config import YoloConfig
@@ -22,29 +21,81 @@ class YoloClassifier(object):
         self.model = None
         self._load_model()
 
+    def _process_output(self, outs, height, width):
+
+        boxes = []
+        confs = []
+        classess_ids = []
+
+        for detections in outs:
+            for detection in detections:
+
+                scores = detection[5:]
+                class_id = np.argmax(scores)
+                conf = scores[class_id]
+
+                if conf > self.conf_threshold:
+
+                    box = detection[0:4] * np.array([width, height, width, height])
+                    centerX, centerY, bwidth, bheight = box.astype("int")
+                    x = int(centerX - (bwidth / 2))
+                    y = int(centerY - (bheight / 2))
+
+                    boxes.append([x, y, int(bwidth), int(bheight)])
+                    confs.append(float(conf))
+                    classess_ids.append(class_id)
+
+        idxs = cv2.dnn.NMSBoxes(boxes, confs, self.conf_threshold, self.nms_threshold)
+
+        results = []
+        for idx in idxs:
+            results.append(
+                Detection.from_cv2_output(boxes[idx], confs[idx], classess_ids[idx])
+            )
+
+        return results
+
     def detect_objects(self, images: List[np.ndarray]) -> List[List]:
 
         outputs = []
 
         for image in images:
+
+            self.model.setInput(
+                cv2.dnn.blobFromImage(
+                    image,
+                    scalefactor=1 / 255.0,
+                    size=(416, 416),
+                    mean=(0, 0, 0),
+                    swapRB=True,
+                    crop=False,
+                )
+            )
+
             with cuda_lock:
 
-                output = detect.detect_image(
-                    self.model,
-                    image,
-                    conf_thres=self.conf_threshold,
-                    nms_thres=self.nms_threshold,
-                )
+                output = self.model.forward(self.output_layers)
 
-                outputs.append(output)
+                outputs.append(
+                    self._process_output(
+                        output,
+                        image.shape[0],
+                        image.shape[1],
+                    )
+                )
 
         return outputs
 
     def _load_model(self):
 
-        self.model = models.load_model(
-            self.yolo_cfg.cfg_file, self.yolo_cfg.weights_file
-        )
+        self.model = cv2.dnn.readNet(self.yolo_cfg.weights_file, self.yolo_cfg.cfg_file)
+        self.model.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
+        self.model.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA_FP16)
+
+        self.layers_names = self.model.getLayerNames()
+        self.output_layers = [
+            self.layers_names[i - 1] for i in self.model.getUnconnectedOutLayers()
+        ]
 
     def classify(self, images: List[np.ndarray]) -> List[np.ndarray]:
         # image must be cv2 image
@@ -55,8 +106,7 @@ class YoloClassifier(object):
         outputs = self.detect_objects(images)
 
         for index, output in enumerate(outputs):
-            for out in output:
-                detection = Detection.from_output(out)
+            for detection in output:
                 self.draw_on_image(images[index], detection)
 
         return images

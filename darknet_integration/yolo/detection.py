@@ -42,3 +42,14 @@ class Detection:
             confidence=output[4],
             class_index=int(output[5]),
         )
+
+    @staticmethod
+    def from_cv2_output(box: List, confidence: float, class_index: int):
+        return Detection(
+            x1=int(box[0]),
+            y1=int(box[1]),
+            x2=int(box[0]) + int(box[2]),
+            y2=int(box[1]) + int(box[3]),
+            confidence=confidence,
+            class_index=class_index,
+        )
