@@ -36,4 +36,7 @@ class YoloV3Config(YoloConfig):
         self._cfgfile = "models/yolov3.cfg"
         self._weightsfile = "models/yolov3.weights"
         self._classes = load_classes("models/coco.names")
+
+        # set seed to get the same colors for each run
+        np.random.seed(0)
         self._colors = np.random.uniform(0, 255, size=(len(self._classes), 3))
