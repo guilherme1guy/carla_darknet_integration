@@ -1,12 +1,8 @@
-import enum
-import io
-from tempfile import SpooledTemporaryFile
 from threading import Lock
 from typing import List
 
 import cv2
 import numpy as np
-import pygame
 import torch
 from pytorchyolo import detect, models
 
@@ -23,9 +19,8 @@ class YoloClassifier(object):
         self.conf_threshold = conf_threshold
         self.nms_threshold = nms_threshold
 
-        self.model = models.load_model(
-            self.yolo_cfg.cfg_file, self.yolo_cfg.weights_file
-        )
+        self.model = None
+        self._load_model()
 
     def detect_objects(self, images: List[np.ndarray]) -> List[List]:
 
@@ -33,6 +28,7 @@ class YoloClassifier(object):
 
         for image in images:
             with cuda_lock:
+
                 output = detect.detect_image(
                     self.model,
                     image,
@@ -43,6 +39,12 @@ class YoloClassifier(object):
                 outputs.append(output)
 
         return outputs
+
+    def _load_model(self):
+
+        self.model = models.load_model(
+            self.yolo_cfg.cfg_file, self.yolo_cfg.weights_file
+        )
 
     def classify(self, images: List[np.ndarray]) -> List[np.ndarray]:
         # image must be cv2 image
