@@ -15,14 +15,21 @@ class CameraManager(object):
     # sensor name should be unique
     _SENSORS = [
         SensorAbstraction("sensor.camera.rgb", cc.Raw, "Camera RGB", {}),
-        SensorAbstraction("sensor.camera.rgb", cc.Raw, "Yolo Sensor", {}),
+        SensorAbstraction(
+            "sensor.camera.rgb",
+            cc.Raw,
+            "Yolo Sensor",
+            {
+                "fov": "85",
+            },
+        ),
         StereoSensorAbstraction(
             "sensor.camera.rgb",
             cc.Raw,
             "Yolo Sensor Stereo",
             (0, 0.635, 0),
             {
-                "fov": "60",
+                "fov": "85",
                 "image_size_x": "800",
                 "image_size_y": "600",
             },
@@ -107,6 +114,13 @@ class CameraManager(object):
                 0.0 * bound_y,
                 1.3 * bound_z,
                 attachment=Attachment.Rigid,
+            ),
+            TransformData(
+                0.8 * bound_x,
+                0.0 * bound_y,
+                1.3 * bound_z,
+                attachment=Attachment.Rigid,
+                pitch=-30,
             ),
             TransformData(
                 1.9 * bound_x,
