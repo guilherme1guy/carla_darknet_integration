@@ -8,12 +8,11 @@ class IPMDistanceCalculator:
     # u is always column number (ie: 0 to 1280 (in 720p))
     # v is always row number (ie: 0 to 720 (in 720p))
 
-    def __init__(
-        self, camera_data: CameraData, pixel_to_meter_ratio: float = 1
-    ) -> None:
+    def __init__(self, camera_data: CameraData) -> None:
 
         self.camera_data = camera_data
-        self.pixel_to_meter_ratio = pixel_to_meter_ratio
+        self.expected_max_dist = math.tan(camera_data.rad_angle) * camera_data.height
+        self.pixel_to_meter_ratio = camera_data.image_width / self.expected_max_dist
 
     @cached_property
     def rotation_matrix(self):
@@ -135,7 +134,7 @@ class IPMDistanceCalculator:
 
         new_image = np.zeros(image.shape, dtype=np.uint8)
         center_x = new_image.shape[0] // 2
-        center_z = 0  # new_image.shape[1] // 2
+        center_z = 0  # new_image.shape[1]  # // 2
 
         # image.shape[0] is the height of the image (number of rows)
         # image.shape[1] is the width of the image (number of columns)
@@ -150,7 +149,7 @@ class IPMDistanceCalculator:
                 # z is the column in new_image
                 _x, _z = results[v, u]
 
-                x = int(center_x + _x * self.pixel_to_meter_ratio)
+                x = int(center_x + _x)
                 z = int(center_z + _z * self.pixel_to_meter_ratio)
 
                 if 0 <= x < new_image.shape[0] and 0 <= z < new_image.shape[1]:
