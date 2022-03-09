@@ -156,7 +156,14 @@ class IPMDistanceCalculator:
                 if 0 <= x < new_image.shape[0] and 0 <= z < new_image.shape[1]:
                     new_image[x, z] = image[v, u]
 
-        return new_image
+        return self.filter(new_image)
+
+    def filter(self, image: np.ndarray):
+        for u in range(1, image.shape[1] - 1):
+            if image[0, u, 0] == 0 and image[0, u, 1] == 0 and image[0, u, 2] == 0:
+                image[:, u] = image[:, u - 1]
+
+        return image
 
     def __str__(self) -> str:
         return (
