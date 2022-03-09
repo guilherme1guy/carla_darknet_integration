@@ -1,4 +1,5 @@
 from functools import cached_property, lru_cache
+import math
 import numpy as np
 from .camera_data import CameraData
 
@@ -158,8 +159,13 @@ class IPMDistanceCalculator:
         return self.filter(new_image)
 
     def filter(self, image: np.ndarray):
+        v_mid = image.shape[0] // 2
         for u in range(1, image.shape[1] - 1):
-            if image[0, u, 0] == 0 and image[0, u, 1] == 0 and image[0, u, 2] == 0:
+            if (
+                image[v_mid, u, 0] == 0
+                and image[v_mid, u, 1] == 0
+                and image[v_mid, u, 2] == 0
+            ):
                 image[:, u] = image[:, u - 1]
 
         return image
