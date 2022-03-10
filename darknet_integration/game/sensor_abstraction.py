@@ -1,10 +1,12 @@
 import typing
-from typing import Optional
 import weakref
+from functools import lru_cache
+from typing import Optional
 
 import carla
-from game.camera_parser import CameraParser
 
+from game.camera_parser import CameraParser
+from game.sensor_info import SensorInfo
 from game.transform_data import TransformData
 
 
@@ -40,6 +42,7 @@ class SensorAbstraction:
             attach_to=parent,
             attachment_type=transform_data.attachment_type,
         )
+        self._sensor_info.cache_clear()
 
     def _create_listener(self, parser: CameraParser):
         # We need to pass the lambda as a weak reference to avoid a circular reference
@@ -47,9 +50,18 @@ class SensorAbstraction:
         weak_ref = weakref.ref(parser)
         self.listen(
             lambda image: CameraParser.parse_image(
-                weak_ref, image, self.sensor_type, self.name, self.color_convert
+                weak_ref,
+                image,
+                self.sensor_type,
+                self.name,
+                self.color_convert,
+                self._sensor_info(),
             )
         )
+
+    @lru_cache(maxsize=1)
+    def _sensor_info(self) -> SensorInfo:
+        return SensorInfo.get_sensor_info(self._sensor)
 
     def stop(self) -> None:
 

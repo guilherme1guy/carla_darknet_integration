@@ -1,9 +1,11 @@
+from functools import lru_cache
 from multiprocessing import Barrier
 from threading import Lock
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 import weakref
 
 import carla
+from game.sensor_info import SensorInfo
 from game.transform_data import TransformData
 from game.camera_parser import CameraParser
 from game.sensor_abstraction import SensorAbstraction
@@ -73,6 +75,8 @@ class StereoSensorAbstraction(SensorAbstraction):
             attachment_type=transforms[1].attachment_type,
         )
 
+        self._sensor_info.cache_clear()
+
     def _create_listener(self, parser: CameraParser):
         # We need to pass the lambda as a weak reference to avoid a circular reference
         # setup listener for sensor
@@ -115,6 +119,13 @@ class StereoSensorAbstraction(SensorAbstraction):
         # spawning the sensor, only implemented to override super class and avoid errors
         return
 
+    @lru_cache(maxsize=1)
+    def _sensor_info(self) -> List[SensorInfo]:
+        return [
+            SensorInfo.get_sensor_info(self._sensor),
+            SensorInfo.get_sensor_info(self._other_sensor),
+        ]
+
     @staticmethod
     def _stereo_listen(weak_self, weak_parser, image, id):
 
@@ -139,4 +150,5 @@ class StereoSensorAbstraction(SensorAbstraction):
                     self.sensor_type,
                     self.name,
                     self.color_convert,
+                    self._sensor_info(),
                 )

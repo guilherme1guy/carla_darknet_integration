@@ -1,9 +1,12 @@
-from typing import Any, List, Optional, Tuple
 import weakref
+from typing import Any, List, Optional, Tuple
+
 import numpy as np
 import pygame
-
+from sensors.ipm_sensor import IPMSensor
 from sensors.yolo_sensor import YoloSensor
+
+from game.sensor_info import SensorInfo
 
 
 class CameraParser:
@@ -11,7 +14,9 @@ class CameraParser:
 
         self.dim: Tuple[int, int] = dim
         self.lidar_range = lidar_range
+
         self.yolo = YoloSensor()
+        self.ipm = IPMSensor()
 
         self.recording = False
 
@@ -99,25 +104,43 @@ class CameraParser:
 
     @staticmethod
     def _parse_rgb_camera(
-        images: List[Any], color_convert, yolo: Optional[YoloSensor] = None
+        images: List[Any],
+        color_convert,
+        sensor_info: SensorInfo,
+        yolo: Optional[YoloSensor] = None,
+        ipm: Optional[IPMSensor] = None,
     ) -> pygame.surface:
 
         arrays = [
             CameraParser._rgb_image_to_array(image, color_convert) for image in images
         ]
 
+        surface = None
+
         if yolo is not None:
 
             yolo.add_job(arrays, images[0].frame)
             surface = yolo.get_surface()
 
-            if surface is not None:
-                return surface
+        if ipm is not None:
 
-        return pygame.surfarray.make_surface(arrays[0].swapaxes(0, 1))
+            ipm.add_job(arrays, images[0].frame, sensor_info)
+            surface = ipm.get_surface()
+
+        if surface is None:
+            return pygame.surfarray.make_surface(arrays[0].swapaxes(0, 1))
+        else:
+            return surface
 
     @staticmethod
-    def parse_image(weak_self, image, sensor_type, sensor_name, color_convert):
+    def parse_image(
+        weak_self,
+        image,
+        sensor_type,
+        sensor_name,
+        color_convert,
+        sensor_info: SensorInfo,
+    ):
 
         self: CameraParser = weak_self()
 
@@ -135,7 +158,11 @@ class CameraParser:
 
         else:
             new_surface = CameraParser._parse_rgb_camera(
-                [image], color_convert, (self.yolo if "Yolo" in sensor_name else None)
+                [image],
+                color_convert,
+                sensor_info,
+                (self.yolo if "Yolo" in sensor_name else None),
+                (self.ipm if "IPM" in sensor_name else None),
             )
 
         self.set_surface(new_surface)
@@ -144,7 +171,14 @@ class CameraParser:
             image.save_to_disk("_out/%08d" % image.frame)
 
     @staticmethod
-    def parse_stereo_image(weak_self, images, sensor_type, sensor_name, color_convert):
+    def parse_stereo_image(
+        weak_self,
+        images,
+        sensor_type,
+        sensor_name,
+        color_convert,
+        sensors_info: List[SensorInfo],
+    ):
 
         self: CameraParser = weak_self()
 
@@ -152,7 +186,9 @@ class CameraParser:
             return
 
         # this methoud is only used in yolo mode
-        new_surface = CameraParser._parse_rgb_camera(images, color_convert, self.yolo)
+        new_surface = CameraParser._parse_rgb_camera(
+            images, color_convert, sensors_info[0], self.yolo
+        )
 
         self.set_surface(new_surface)
 
