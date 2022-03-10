@@ -12,8 +12,7 @@ class IPMDistanceCalculator:
     def __init__(self, camera_data: CameraData) -> None:
 
         self.camera_data = camera_data
-        self.expected_max_dist = math.tan(camera_data.rad_angle) * camera_data.height
-        self.pixel_to_meter_ratio = camera_data.image_width / self.expected_max_dist
+        self.update_properties()
 
     @cached_property
     def rotation_matrix(self):
@@ -48,28 +47,26 @@ class IPMDistanceCalculator:
     @cached_property
     def camera_parameter_matrix(self):
 
-        f = self.camera_data.focus_length
-        kv = self.camera_data.image_width / self.camera_data.image_height
-        ku = self.camera_data.image_height / self.camera_data.image_width
+        fx = self.camera_data.fx
+        fy = self.camera_data.fy
         s = self.camera_data.skew
         u0 = self.camera_data.center_x
         v0 = self.camera_data.center_y
 
         return np.array(
             [
-                [f * ku, s, u0, 0],
-                [0, f * kv, v0, 0],
+                [fx, s, u0, 0],
+                [0, fy, v0, 0],
                 [0, 0, 1, 0],
             ]
         )
 
     @cached_property
     def _complete_P_matrix(self):
-        return (
-            self.camera_parameter_matrix
-            @ self.translation_matrix
-            @ self.rotation_matrix
-        )
+
+        extrinsic = self.translation_matrix @ self.rotation_matrix
+
+        return self.camera_parameter_matrix @ extrinsic
 
     @cached_property
     def P_matrix(self):
@@ -135,7 +132,7 @@ class IPMDistanceCalculator:
 
         new_image = np.zeros(image.shape, dtype=np.uint8)
         center_x = new_image.shape[0] // 2
-        center_z = 0  # new_image.shape[1]  # // 2
+        center_z = 0  # new_image.shape[1] // 2
 
         # image.shape[0] is the height of the image (number of rows)
         # image.shape[1] is the width of the image (number of columns)
@@ -143,18 +140,22 @@ class IPMDistanceCalculator:
         results = self.convert_matrix(image.shape[1], image.shape[0])
         u = 0  # column number (ie: 0 to 1280 (in 720p))
         v = 0  # row number (ie: 0 to 720 (in 720p))
+
+        max_dist = results[0][0][1]
+        pixel_to_meter_ratio = self.camera_data.image_width / max_dist
+
         for v in range(image.shape[0]):  # for v in heigth (0 to 720p)
             for u in range(image.shape[1]):  # for u in col (0 to 1280)
 
                 # x is the row in new_image
                 # z is the column in new_image
-                _x, _z = results[v, u]
+                x, z = results[v, u]
 
-                x = int(center_x + _x)
-                z = int(center_z + _z * self.pixel_to_meter_ratio)
+                new_v = int(self.camera_data.fx * x + center_x)
+                new_u = int(z * pixel_to_meter_ratio + center_z)
 
-                if 0 <= x < new_image.shape[0] and 0 <= z < new_image.shape[1]:
-                    new_image[x, z] = image[v, u]
+                if 0 <= new_v < new_image.shape[0] and 0 <= new_u < new_image.shape[1]:
+                    new_image[new_v, new_u] = image[v, u]
 
         return self.filter(new_image)
 
@@ -170,10 +171,30 @@ class IPMDistanceCalculator:
 
         return image
 
+    def update_properties(self):
+
+        # delete cached attributes
+        keys = [
+            "rotation_matrix",
+            "translation_matrix",
+            "camera_parameter_matrix",
+            "P_matrix",
+            "_complete_P_matrix",
+        ]
+        for key in keys:
+            self.__dict__.pop(key, None)
+
+        # delete lru_cache
+        self._b_matrix_array_cache.cache_clear()
+        self._P_matrix_array_cache.cache_clear()
+        self.convert_point.cache_clear()
+
     def __str__(self) -> str:
         return (
             f"\n--------------\nRotation matrix: \n{self.rotation_matrix}"
             + f"\n--------------\nTranslation matrix: \n{self.translation_matrix}"
             + f"\n--------------\nCamera parameter matrix: \n{self.camera_parameter_matrix}"
+            + f"\n--------------\nT @ R (extrinsic): \n{self.translation_matrix @ self.rotation_matrix}"
+            + f"\n--------------\nComplete P matrix: \n{self._complete_P_matrix}"
             + f"\n--------------\nP matrix: \n{self.P_matrix}"
         )
