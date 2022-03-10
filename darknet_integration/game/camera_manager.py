@@ -210,9 +210,9 @@ class CameraManager(object):
         self.camera_parser.recording = not self.camera_parser.recording
         self.hud.notification(f"Recording {self.camera_parser.recording}")
 
-    def render(self, display):
+    def render(self, display: pygame.Surface):
 
         surface = self.camera_parser.get_surface()
 
         if surface is not None:
-            display.blit(surface, (0, 0))
+            display.blit(pygame.transform.scale(surface, display.get_size()), (0, 0))
