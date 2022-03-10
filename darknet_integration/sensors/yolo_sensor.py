@@ -1,25 +1,23 @@
-from typing import List
+from functools import lru_cache
+from queue import Empty
+from typing import List, Tuple
 
-import time
 import cv2
 import numpy as np
-
-from threading import Thread
-from queue import Empty, Queue
+from utils import image_to_pygame
+from yolo.detection import Detection
+from yolo.yolo import YoloClassifier
 from yolo.yolo_config import YoloV3Config
 
-from yolo.yolo import YoloClassifier
-from yolo.yolo_job import YoloJob
-from utils import image_to_pygame, numpy_to_cv2
+from sensors.threaded_sensor import ThreadedSensor
 
 
-class YoloSensor(object):
+class YoloSensor(ThreadedSensor):
     """
-    This class receives images from the CARLA simulation and adds them to a queue for later classification
-    On another thread the images are transformed into jobs, that run in N worker threads
+    Yolo detection sensor, uses the ThreadedSensorJob class to provide asynchronous
+    object detection, discarding a image when its too old.
 
-    A image is discarded when its too old, each thread has its own classifier
-
+    Each thread has its own classifier
 
     # Better results where found with 1 thread
     """
@@ -28,95 +26,51 @@ class YoloSensor(object):
 
     def __init__(self):
 
-        self.jobs: Queue[YoloJob] = Queue()
-        self.results: list[List[np.ndarray]] = []
+        self.results: list[Tuple[List[np.ndarray], List[List[Detection]]]] = []
+        super().__init__()
 
-        self.run = True
-
-        self.threads: List[Thread] = []
-
-        # Initialize worker threads
-        for i in range(0, self.THREAD_COUNT):
-            worker_thread = Thread(target=self.work, args=(i,))
-            worker_thread.start()
-
-            self.threads.append(worker_thread)
+    @lru_cache
+    def yolo_classifier(self, thread_id):
+        # This function is cached, so the classifier will not be created
+        # everytime. It is important to have thread_id, even if not used
+        # in the function, as it will be used by lru_cache to cache a classifier
+        # for each thread based on it
+        return YoloClassifier(YoloV3Config())
 
     def work(self, thread_id: int):
-        """
-        This function is the body of the worker thread, it keeps running until
-        self.run is set to false
-        """
 
-        print(f"[t{thread_id}] Started thread")
-
-        # initialize classifier for this worker thread
-        yolo_classifier = YoloClassifier(YoloV3Config())
-
-        # worker main loop
-        while self.run:
-
-            # try to get a new image
-            try:
-                # start_time -> when was this image created on the simulation?
-                job = self.jobs.get(timeout=1)
-            except Empty:
-                continue
-
-            # if the image is older than 0.1, discard it
-            if not job.start_and_check():
-                continue
-
-            # run job
-            self.results.append(self.run_job(yolo_classifier, job))
-
-            job.end_job()
-
-            # delete oldest result if we have more than 255
-            if len(self.results) > 255:
-                self.results.pop(0)
-
-            print(
-                f"[t{thread_id}] Finished job#{job.frame_id} \
-                localDetal: {job.local_delta}s \
-                ({int(job.local_delta/job.delta * 100)}%) \
-                delta: {job.delta}s \
-                fps: {job.fps} qsize: {self.jobs.qsize()}"
-            )
-
-        print(f"[t{thread_id}] Finished thread")
-
-    def stop(self):
-        """
-        Stop sensor execution
-        """
-
-        self.run = False
-        self.results.clear()
-
-        for thread in self.threads:
-            thread.join()
-
-        print(f"Joined all threads")
-
-    def run_job(
-        self, yolo_classifier: YoloClassifier, job: YoloJob
-    ) -> List[np.ndarray]:
-        """
-        Actual work that the worker thread must do
-        """
-        return yolo_classifier.classify(job.cv2_images)
-
-    def add_job(self, array: List[np.ndarray], frame_id: int):
-        """
-        Get image and add it to job queue
-        """
-
-        if not self.run:
+        # try to get a new image
+        try:
+            job = self.jobs.get(timeout=1)
+        except Empty:
             return
 
-        self.jobs.put(YoloJob(array, frame_id, time.time()))
-        # print(f"Added job#{frame}, qsize: {self.jobs.qsize()}")
+        # if the image is older than 0.1, discard it
+        if not job.start_and_check():
+            return
+
+        # run job
+        # obtains classifier
+        yolo_classifier = self.yolo_classifier(thread_id)
+        self.results.append(yolo_classifier.classify(job.cv2_images))
+
+        job.end_job()
+
+        # delete oldest result if we have more than 255
+        if len(self.results) > 255:
+            self.results.pop(0)
+
+        # print performance info
+        print(
+            f"[{str(self)}_{thread_id}] Finished job#{job.frame_id} \
+            localDetal: {job.local_delta}s \
+            ({int(job.local_delta/job.delta * 100)}%) \
+            delta: {job.delta}s \
+            fps: {job.fps} qsize: {self.jobs.qsize()}"
+        )
+
+    def clear(self):
+        self.results.clear()
 
     def get_surface(self):
         """
@@ -127,7 +81,7 @@ class YoloSensor(object):
         if len(self.results) < 1:
             return None
 
-        latest_result = self.results[-1]
+        latest_result, latest_detections = self.results[-1]
 
         if len(latest_result) > 1:
             unified_image = np.concatenate(latest_result, axis=1)
@@ -135,3 +89,6 @@ class YoloSensor(object):
             return image_to_pygame(resized)
 
         return image_to_pygame(np.concatenate(latest_result, axis=1))
+
+    def __str__(self) -> str:
+        return "yolo_t"

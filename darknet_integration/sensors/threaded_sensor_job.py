@@ -1,23 +1,30 @@
-from functools import cached_property
 import time
-from tracemalloc import start
-from typing import List
-from cachetools import cached
-from click import FloatRange
+from functools import cached_property
+from typing import Any, List
 
 import cv2
 import numpy as np
 
 
-class YoloJob:
+class ThreadedSensorJob:
     def __init__(
-        self, images: List[np.ndarray], frame_id: int, frame_time: float
+        self,
+        images: List[np.ndarray],
+        frame_id: int,
+        frame_time: float,
+        discard_threshold: float = 0.1,
+        extra_data: Any = None,
     ) -> None:
 
         self.images = images
         self.frame_id = frame_id
         self.frame_time = frame_time
 
+        self.discard_threshold = discard_threshold
+
+        self.extra_data = extra_data
+
+        # start_time -> when was this image created on the simulation?
         self.start_time: float = 0
         self.end_time: float = 0
 
@@ -28,7 +35,7 @@ class YoloJob:
     def start_and_check(self):
         self.local_start_time = time.time()
 
-        if self.local_start_time - self.frame_time > 0.1:
+        if self.local_start_time - self.frame_time > self.discard_threshold:
             return False
 
         return True
