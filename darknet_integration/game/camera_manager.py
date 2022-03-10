@@ -3,6 +3,7 @@ from typing import List
 
 import carla
 from carla import ColorConverter as cc
+import pygame
 
 from game.camera_parser import CameraParser
 from game.sensor_abstraction import SensorAbstraction
@@ -21,6 +22,16 @@ class CameraManager(object):
             "Yolo Sensor",
             {
                 "fov": "85",
+            },
+        ),
+        SensorAbstraction(
+            "sensor.camera.rgb",
+            cc.Raw,
+            "IPM Sensor",
+            {
+                "fov": "60",
+                "image_size_x": "320",
+                "image_size_y": "240",
             },
         ),
         StereoSensorAbstraction(
@@ -120,7 +131,7 @@ class CameraManager(object):
                 0.0 * bound_y,
                 1.3 * bound_z,
                 attachment=Attachment.Rigid,
-                pitch=-30,
+                pitch=-25,
             ),
             TransformData(
                 1.9 * bound_x,
@@ -199,6 +210,7 @@ class CameraManager(object):
 
     def stop(self):
         self.camera_parser.yolo.stop()
+        self.camera_parser.ipm.stop()
 
     def destroy(self):
         if self.sensor is not None:
