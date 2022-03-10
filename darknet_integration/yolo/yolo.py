@@ -1,5 +1,5 @@
-from threading import Lock
-from typing import List
+from threading import Lock, local
+from typing import List, Tuple
 
 import cv2
 import numpy as np
@@ -46,20 +46,31 @@ class YoloClassifier(object):
             self.yolo_cfg.cfg_file, self.yolo_cfg.weights_file
         )
 
-    def classify(self, images: List[np.ndarray]) -> List[np.ndarray]:
+    def classify(
+        self, images: List[np.ndarray]
+    ) -> Tuple[List[np.ndarray], List[List[Detection]]]:
         # image must be cv2 image
 
         # Output is a list with a numpy array for each image
         # with the following format:
         # [[x1, y1, x2, y2, confidence, class]]
         outputs = self.detect_objects(images)
+        detections = []
 
         for index, output in enumerate(outputs):
+            local_detections = []
             for out in output:
+
                 detection = Detection.from_output(out)
+                local_detections.append(detection)
+
+                # TODO: call IPM here?
+
                 self.draw_on_image(images[index], detection)
 
-        return images
+            detections.append(local_detections)
+
+        return images, detections
 
     def draw_on_image(self, image, detection: Detection):
         """
