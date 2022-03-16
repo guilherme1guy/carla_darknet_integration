@@ -22,6 +22,8 @@ class CameraManager(object):
             "Yolo Sensor",
             {
                 "fov": "85",
+                "image_size_x": "1280",
+                "image_size_y": "720",
             },
         ),
         SensorAbstraction(
@@ -29,20 +31,20 @@ class CameraManager(object):
             cc.Raw,
             "IPM Sensor",
             {
-                "fov": "60",
-                "image_size_x": "320",
-                "image_size_y": "240",
+                "fov": "85",
+                "image_size_x": "640",
+                "image_size_y": "360",
             },
         ),
         StereoSensorAbstraction(
             "sensor.camera.rgb",
             cc.Raw,
             "Yolo Sensor Stereo",
-            (0, 0.635, 0),
+            (0, 0.1, 0),  # if 1 is a meter, 0.1 is 10 5cm
             {
                 "fov": "85",
-                "image_size_x": "800",
-                "image_size_y": "600",
+                "image_size_x": "640",
+                "image_size_y": "360",
             },
         ),
     ]
@@ -125,6 +127,13 @@ class CameraManager(object):
                 0.0 * bound_y,
                 1.3 * bound_z,
                 attachment=Attachment.Rigid,
+            ),
+            TransformData(
+                0.8 * bound_x,
+                0.0 * bound_y,
+                1.3 * bound_z,
+                attachment=Attachment.Rigid,
+                pitch=-5,
             ),
             TransformData(
                 0.8 * bound_x,
