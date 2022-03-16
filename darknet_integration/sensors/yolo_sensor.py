@@ -4,8 +4,11 @@ from typing import List, Tuple
 
 import cv2
 import numpy as np
+from sensors.ipm_sensor import IPMSensor
 from utils import image_to_pygame
 from yolo.detection import Detection
+from yolo.distance_measure.camera_data import CameraData
+from yolo.distance_measure.ipm_distance_calculator import IPMDistanceCalculator
 from yolo.yolo import YoloClassifier
 from yolo.yolo_config import YoloV3Config
 
@@ -37,6 +40,13 @@ class YoloSensor(ThreadedSensor):
         # for each thread based on it
         return YoloClassifier(YoloV3Config())
 
+    @lru_cache
+    def get_ipm(self, thread_id):
+        # start camera_data with random values, they will be
+        # overwritten by the first image
+        camera_data = CameraData(200, 30, 2.8, 1280, 720)
+        return IPMDistanceCalculator(camera_data)
+
     def work(self, thread_id: int):
 
         # try to get a new image
@@ -52,7 +62,11 @@ class YoloSensor(ThreadedSensor):
         # run job
         # obtains classifier
         yolo_classifier = self.yolo_classifier(thread_id)
-        self.results.append(yolo_classifier.classify(job.cv2_images))
+        ipm = self.get_ipm(thread_id)
+
+        IPMSensor._check_camera_data(ipm, job.extra_data)
+
+        self.results.append(yolo_classifier.classify(job.cv2_images, ipm))
 
         job.end_job()
 
