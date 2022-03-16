@@ -1,4 +1,5 @@
 from functools import lru_cache
+import math
 from queue import Empty
 
 import numpy as np
@@ -94,21 +95,25 @@ class IPMSensor(ThreadedSensor):
             camera_data.image_width != sensor_info.image_size_x,
             camera_data.image_height != sensor_info.image_size_y,
             camera_data._fov != sensor_info.fov,
+            any(np.not_equal(camera_data.camera_distance, sensor_info.camera_distance)),
         ]
 
         if any(conditions):
 
             camera_data.height = sensor_info.z
             camera_data.angle = sensor_info.pitch
+            camera_data.rad_angle = math.radians(camera_data.angle)
             camera_data.image_width = sensor_info.image_size_x
             camera_data.image_height = sensor_info.image_size_y
             camera_data.focus_length = camera_data.focus_from_hfov(sensor_info.fov)
             camera_data._fov = sensor_info.fov
+            camera_data.camera_distance = sensor_info.camera_distance
 
             camera_data.update_properties()
             ipm.update_properties()
 
             print(sensor_info)
+            print(camera_data)
             print(ipm)
 
     def __str__(self) -> str:
