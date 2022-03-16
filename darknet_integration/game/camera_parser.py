@@ -119,7 +119,7 @@ class CameraParser:
 
         if yolo is not None:
 
-            yolo.add_job(arrays, images[0].frame)
+            yolo.add_job(arrays, images[0].frame, sensor_info)
             surface = yolo.get_surface()
 
         if ipm is not None:
