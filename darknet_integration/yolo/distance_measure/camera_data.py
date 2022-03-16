@@ -61,8 +61,11 @@ class CameraData:
         return 2 * math.atan(self.image_width / (2 * self.focus_length))
 
     def focus_from_hfov(self, hfov):
-        focus_len = abs(int(self.image_width) / (2.0 * math.tan(hfov)))
-        focus_len = round(focus_len / 100, 2)
+        focus_len = self.image_width / (2.0 * math.tan(math.radians(hfov / 2)))
+
+        # for instance: 85° ~~~ 34.9 mm
+        # so we need to divide by 10
+        focus_len = round(focus_len / 10, 2)
 
         return focus_len
 
