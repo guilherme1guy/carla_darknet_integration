@@ -209,6 +209,9 @@ class IPMDistanceCalculator:
         self.convert_point.cache_clear()
 
     def __str__(self) -> str:
+        np.set_printoptions(precision=3)
+        np.set_printoptions(suppress=True)
+
         return (
             f"\n--------------\nRotation matrix: \n{self.rotation_matrix}"
             + f"\n--------------\nTranslation matrix: \n{self.translation_matrix}"
