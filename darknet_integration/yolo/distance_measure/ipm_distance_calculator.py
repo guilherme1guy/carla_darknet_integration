@@ -86,11 +86,29 @@ class IPMDistanceCalculator:
         result = np.linalg.solve(self.P_matrix, [u, v, 1])
 
         # result is [x, z]
-        result = result[:-1]
+        result = (result / result[2])[:-1]
 
         return result
 
-    @lru_cache(maxsize=2)
+    def convert_points(self, points: List[Tuple[float, float]]):
+
+        # points is a list of [u, v]
+
+        # simillart to convert_matrix, but only with defined points
+        # it is much faster to do a batch call to np.linalg.solve
+
+        if len(points) == 0:
+            return []
+
+        result = np.linalg.solve(
+            self._P_matrix_array_cache(1, len(points)),
+            [[*point, 1] for point in points],
+        )
+        result = np.array([(r / r[2])[:-1] for r in result])
+
+        return result
+
+    @lru_cache(maxsize=15)
     def _P_matrix_array_cache(self, u_size: int, v_size: int):
         return [self.P_matrix for i in range(u_size * v_size)]
 
@@ -107,8 +125,9 @@ class IPMDistanceCalculator:
             self._P_matrix_array_cache(u_size, v_size),
             self._b_matrix_array_cache(u_size, v_size),
         )
-        # result is [x, z], delete unused result part
-        result = np.delete(result, 2, 1)
+        # result is [x, z], but we have [x, z, w]
+        # to convert we need to use [x/w, z/w]
+        result = np.array([(r / r[2])[:-1] for r in result])
 
         # each result is linked to a pixel in the image:
         # [(u, v)] -> is walking the col number (u) and then the row number (v)
