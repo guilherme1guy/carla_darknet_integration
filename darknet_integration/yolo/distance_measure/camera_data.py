@@ -28,6 +28,8 @@ class CameraData:
 
         self._fov = 0.0
 
+        self.camera_distance = (0.0, 0.0, 0.0)
+
     @cached_property
     def fx(self):
         return self.focus_length * self.ku
@@ -75,3 +77,24 @@ class CameraData:
         keys = ["fx", "fy", "kv", "ku", "center_x", "center_y", "v_fov", "h_fov"]
         for key in keys:
             self.__dict__.pop(key, None)
+
+    def __str__(self) -> str:
+        return f"CameraData(\
+            \nheight={self.height},\
+            \nangle={self.angle},\
+            \nrad_angle={self.rad_angle},\
+            \nfocus_length={self.focus_length},\
+            \nimage_width={self.image_width},\
+            \nimage_height={self.image_height},\
+            \nskew={self.skew},\
+            \nfx={self.fx},\
+            \nfy={self.fy},\
+            \nkv={self.kv},\
+            \nku={self.ku},\
+            \ncenter_x={self.center_x},\
+            \ncenter_y={self.center_y},\
+            \nv_fov={self.v_fov},\
+            \nh_fov={self.h_fov},\
+            \nfocus_from_hfov={self.focus_from_hfov(self._fov)},\
+            \n_fov={self._fov}\
+            )\n"
