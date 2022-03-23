@@ -46,7 +46,7 @@ class IPMSensor(ThreadedSensor):
         # run job
         ipm = self.get_ipm(thread_id)
         IPMSensor._check_camera_data(ipm, job.extra_data)
-        self.results.append(ipm.convert_image(job.cv2_images[0]))
+        self.results.append(ipm.project(job.cv2_images[0]))
 
         job.end_job()
 
@@ -90,8 +90,8 @@ class IPMSensor(ThreadedSensor):
         camera_data = ipm.camera_data
 
         conditions = [
-            camera_data.height != sensor_info.z,
-            camera_data.angle != sensor_info.pitch,
+            any(np.not_equal(camera_data.translation, sensor_info.transform)),
+            any(np.not_equal(camera_data.rotation, sensor_info.rotation)),
             camera_data.image_width != sensor_info.image_size_x,
             camera_data.image_height != sensor_info.image_size_y,
             camera_data._fov != sensor_info.fov,
