@@ -28,7 +28,7 @@ class IPMSensor(ThreadedSensor):
     def get_ipm(self, thread_id):
         # start camera_data with random values, they will be
         # overwritten by the first image
-        camera_data = CameraData(200, 30, 2.8, 1280, 720)
+        camera_data = CameraData((0, 0, 200), (0, 30, 0), 2.8, 1280, 720)
         return IPMDistanceCalculator(camera_data)
 
     def work(self, thread_id: int):
@@ -100,12 +100,16 @@ class IPMSensor(ThreadedSensor):
 
         if any(conditions):
 
-            camera_data.height = sensor_info.z
-            camera_data.angle = sensor_info.pitch
-            camera_data.rad_angle = math.radians(camera_data.angle)
+            camera_data.translation = sensor_info.transform
+            camera_data.rotation = sensor_info.rotation
+            camera_data.rad_rotation = CameraData.deg_rotation_to_rad(
+                camera_data.rotation
+            )
             camera_data.image_width = sensor_info.image_size_x
             camera_data.image_height = sensor_info.image_size_y
-            camera_data.focus_length = camera_data.focus_from_hfov(sensor_info.fov)
+            camera_data.focus_length = camera_data.focus_from_hfov(
+                sensor_info.fov, camera_data.image_width
+            )
             camera_data._fov = sensor_info.fov
             camera_data.camera_distance = sensor_info.camera_distance
 

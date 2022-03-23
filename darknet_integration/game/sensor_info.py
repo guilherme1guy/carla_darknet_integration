@@ -9,15 +9,15 @@ class SensorInfo:
 
     def __init__(
         self,
-        z,
-        pitch,
+        transform,
+        rotation,
         image_size_x,
         image_size_y,
         fov,
         camera_distance: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     ) -> None:
-        self.z = z
-        self.pitch = pitch
+        self.transform = transform
+        self.rotation = rotation
         self.image_size_x = image_size_x
         self.image_size_y = image_size_y
         self.fov = fov
@@ -25,8 +25,8 @@ class SensorInfo:
 
     def __str__(self) -> str:
         return f"SensorInfo(\
-            \nz={self.z}, \
-            \npitch={self.pitch}, \
+            \ntransform={self.transform}, \
+            \nrotation={self.rotation}, \
             \nimage_size_x={self.image_size_x}, \
             \nimage_size_y={self.image_size_y}, \
             \nfov={self.fov}) \
@@ -38,9 +38,23 @@ class SensorInfo:
         camera_distance: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     ) -> "SensorInfo":
 
+        transform = (
+            0,
+            0,
+            round(sensor.parent.bounding_box.extent.z * 2, 2),
+        )
+
+        parent_t = sensor.parent.get_transform()
+        t = sensor.get_transform()
+        rotation = (
+            round(parent_t.rotation.roll - t.rotation.roll, 2),
+            round(parent_t.rotation.pitch - t.rotation.pitch, 2),
+            round(parent_t.rotation.yaw - t.rotation.yaw, 2),
+        )
+
         return SensorInfo(
-            round(sensor.parent.bounding_box.extent.y * 2 * 100, 2),
-            abs(round(sensor.get_transform().rotation.pitch, 2)),
+            transform,
+            rotation,
             int(sensor.attributes["image_size_x"]),
             int(sensor.attributes["image_size_y"]),
             float(sensor.attributes["fov"]),

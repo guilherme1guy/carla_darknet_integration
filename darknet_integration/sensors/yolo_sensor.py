@@ -44,7 +44,7 @@ class YoloSensor(ThreadedSensor):
     def get_ipm(self, thread_id):
         # start camera_data with random values, they will be
         # overwritten by the first image
-        camera_data = CameraData(200, 30, 2.8, 1280, 720)
+        camera_data = CameraData((0, 0, 200), (0, 30, 0), 2.8, 1280, 720)
         return IPMDistanceCalculator(camera_data)
 
     def work(self, thread_id: int):

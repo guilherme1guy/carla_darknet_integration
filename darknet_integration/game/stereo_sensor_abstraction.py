@@ -1,14 +1,17 @@
+import threading
+import weakref
 from functools import lru_cache
 from multiprocessing import Barrier
 from threading import Lock
 from typing import List, Optional, Tuple
-import weakref
 
 import carla
-from game.sensor_info import SensorInfo
-from game.transform_data import TransformData
+import numpy as np
+
 from game.camera_parser import CameraParser
 from game.sensor_abstraction import SensorAbstraction
+from game.sensor_info import SensorInfo
+from game.transform_data import TransformData
 
 
 class StereoSensorAbstraction(SensorAbstraction):
@@ -22,12 +25,13 @@ class StereoSensorAbstraction(SensorAbstraction):
     ) -> None:
         super().__init__(sensor_type, color_convert, name, options)
 
-        # (x, y, z)
         # the original transform will be changed, in example:
         # distances_x = 2
         # so the original transform will be on x = -1 and
         # the new transform will be on x = 1
-        self.between_distances = between_distances
+
+        # between_distances -> (x_distance, y_distance, z_distance)
+        self.between_distances = np.array(between_distances)
         self._other_sensor: Optional[carla.Sensor] = None
 
         self._image_written_barrier = Barrier(2)
@@ -35,9 +39,8 @@ class StereoSensorAbstraction(SensorAbstraction):
 
         self.images = [None, None]
 
-    def _modify_transform_data(
-        self, transform_data: TransformData, values: Tuple[float, float, float]
-    ):
+    def _modify_transform_data(self, transform_data: TransformData, values: np.ndarray):
+        # values is a array with 3 elements: [x,y,z]
         return TransformData(
             transform_data.x + values[0],
             transform_data.y + values[1],
@@ -49,8 +52,8 @@ class StereoSensorAbstraction(SensorAbstraction):
         )
 
     def _split_transform_data(self, transform_data):
-        split_values = tuple(map(lambda x: x / 2, self.between_distances))
-        negative_split = tuple(map(lambda x: x * -1, split_values))
+        split_values = self.between_distances / 2
+        negative_split = split_values * -1
 
         return [
             self._modify_transform_data(transform_data, negative_split),
@@ -76,6 +79,14 @@ class StereoSensorAbstraction(SensorAbstraction):
         )
 
         self._sensor_info.cache_clear()
+
+        # call print in a thread so CARLA can spawn the sensor in the simulation
+        threading.Timer(
+            0.1,
+            lambda: print(
+                f"StereoSensor spawned actors at:\n\t{self._sensor.get_location()}\n\t{self._other_sensor.get_location()}\n\t Diff: {self._sensor.get_location() - self._other_sensor.get_location()}"
+            ),
+        ).start()
 
     def _create_listener(self, parser: CameraParser):
         # We need to pass the lambda as a weak reference to avoid a circular reference
@@ -122,8 +133,8 @@ class StereoSensorAbstraction(SensorAbstraction):
     @lru_cache(maxsize=1)
     def _sensor_info(self) -> List[SensorInfo]:
         return [
-            SensorInfo.get_sensor_info(self._sensor),
-            SensorInfo.get_sensor_info(self._other_sensor),
+            SensorInfo.get_sensor_info(self._sensor, self.between_distances),
+            SensorInfo.get_sensor_info(self._other_sensor, self.between_distances),
         ]
 
     @staticmethod

@@ -1,12 +1,13 @@
 from functools import cached_property
 import math
+from typing import Tuple
 
 
 class CameraData:
     def __init__(
         self,
-        height: float,
-        angle: float,
+        translation: Tuple[float, float, float],
+        rotation: Tuple[float, float, float],
         focus_length: float,
         image_width: int,
         image_height: int,
@@ -17,16 +18,22 @@ class CameraData:
         self.image_width = image_width
         self.image_height = image_height
 
-        self.height: float = height  # height of the camera in (cm)
+        # translation from camera to world (in meters)
+        # (x, y, z)
+        self.translation = translation
 
-        # angle (degrees) that the camera is in relation to the ground
-        self.angle: float = angle
-        self.rad_angle = math.radians(angle)
+        # rotation in degrees that the camera is in relation to the ground
+        # (roll, pitch, yaw)
+        self.rotation = rotation
+        self.rad_rotation = (
+            math.radians(self.rotation[0]),
+            math.radians(self.rotation[1]),
+            math.radians(self.rotation[2]),
+        )
 
-        self.focus_length = focus_length  # focal length of the camera in cm
+        self.focus_length = focus_length
+        self._fov = self.hfov_from_focus(self.focus_length, self.image_width)
         self.skew = skew
-
-        self._fov = 0.0
 
         self.camera_distance = (0.0, 0.0, 0.0)
 
@@ -40,11 +47,11 @@ class CameraData:
 
     @cached_property
     def kv(self):
-        return self.image_width / self.image_height
+        return self.image_height
 
     @cached_property
     def ku(self):
-        return self.image_height / self.image_width
+        return self.image_width
 
     @cached_property
     def center_x(self):
@@ -55,21 +62,28 @@ class CameraData:
         return self.image_height // 2
 
     @cached_property
-    def v_fov(self):
-        return 2 * math.atan(self.image_height / (2 * self.focus_length))
-
-    @cached_property
     def h_fov(self):
-        return 2 * math.atan(self.image_width / (2 * self.focus_length))
+        return self._fov
 
-    def focus_from_hfov(self, hfov):
-        focus_len = self.image_width / (2.0 * math.tan(math.radians(hfov / 2)))
-
-        # for instance: 85° ~~~ 34.9 mm
-        # so we need to divide by 10
-        focus_len = round(focus_len / 10, 2)
+    @staticmethod
+    def focus_from_hfov(hfov, width):
+        focus_len = width / (2.0 * math.tan(math.radians(hfov / 2))) / 100
 
         return focus_len
+
+    @staticmethod
+    def hfov_from_focus(focus, width):
+        hfov = 2 * math.atan(width / (2 * focus * 100))
+
+        return hfov
+
+    @staticmethod
+    def deg_rotation_to_rad(rotation):
+        return (
+            math.radians(rotation[0]),
+            math.radians(rotation[1]),
+            math.radians(rotation[2]),
+        )
 
     def update_properties(self):
         # delete cached properties to update them on
@@ -80,9 +94,9 @@ class CameraData:
 
     def __str__(self) -> str:
         return f"CameraData(\
-            \nheight={self.height},\
-            \nangle={self.angle},\
-            \nrad_angle={self.rad_angle},\
+            \translation={self.translation},\
+            \rotation={self.rotation},\
+            \nrad_rotation={self.rad_rotation},\
             \nfocus_length={self.focus_length},\
             \nimage_width={self.image_width},\
             \nimage_height={self.image_height},\
@@ -93,8 +107,5 @@ class CameraData:
             \nku={self.ku},\
             \ncenter_x={self.center_x},\
             \ncenter_y={self.center_y},\
-            \nv_fov={self.v_fov},\
             \nh_fov={self.h_fov},\
-            \nfocus_from_hfov={self.focus_from_hfov(self._fov)},\
-            \n_fov={self._fov}\
             )\n"
