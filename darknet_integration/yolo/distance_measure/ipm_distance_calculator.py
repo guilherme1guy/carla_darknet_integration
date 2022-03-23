@@ -1,6 +1,7 @@
 from functools import cached_property, lru_cache
 import math
 import numpy as np
+
 from .camera_data import CameraData
 
 
@@ -12,211 +13,202 @@ class IPMDistanceCalculator:
     def __init__(self, camera_data: CameraData) -> None:
 
         self.camera_data = camera_data
+        self.max_distance = 50.0
+
         self.update_properties()
 
-    @cached_property
-    def rotation_matrix(self):
+    @staticmethod
+    def rotation_matrix(camera_data: CameraData):
 
-        cos = np.cos(self.camera_data.rad_angle)
-        sin = np.sin(self.camera_data.rad_angle)
+        roll, pitch, yaw = camera_data.rad_rotation
 
-        return np.array(
-            [
-                [1, 0, 0, 0],
-                [0, cos, -sin, 0],
-                [0, sin, cos, 0],
-                [0, 0, 0, 1],
-            ]
-        )
+        si, sj, sk = np.sin(roll), np.sin(pitch), np.sin(yaw)
+        ci, cj, ck = np.cos(roll), np.cos(pitch), np.cos(yaw)
+        cc, cs = ci * ck, ci * sk
+        sc, ss = si * ck, si * sk
 
-    @cached_property
-    def translation_matrix(self):
+        R = np.identity(3)
 
-        h = self.camera_data.height
-        sin = np.sin(self.camera_data.rad_angle)
+        R[0, 0] = cj * ck
+        R[0, 1] = sj * sc - cs
+        R[0, 2] = sj * cc + ss
 
-        return np.array(
-            [
-                [1, 0, 0, 0],
-                [0, 1, 0, 0],
-                [0, 0, 1, -h / sin],
-                [0, 0, 0, 1],
-            ]
-        )
+        R[1, 0] = cj * sk
+        R[1, 1] = sj * ss + cc
+        R[1, 2] = sj * cs - sc
 
-    @cached_property
-    def camera_parameter_matrix(self):
+        R[2, 0] = -sj
+        R[2, 1] = cj * si
+        R[2, 2] = cj * ci
 
-        fx = self.camera_data.fx
-        fy = self.camera_data.fy
-        s = self.camera_data.skew
-        u0 = self.camera_data.center_x
-        v0 = self.camera_data.center_y
+        return R
+
+    @staticmethod
+    def camera_parameter_matrix(camera_data: CameraData) -> np.ndarray:
+
+        fx = camera_data.fx
+        fy = camera_data.fy
+        s = camera_data.skew
+        u0 = camera_data.center_x
+        v0 = camera_data.center_y
 
         return np.array(
             [
-                [fx, s, u0, 0],
-                [0, fy, v0, 0],
-                [0, 0, 1, 0],
+                [fx, s, u0],
+                [0, fy, v0],
+                [0, 0, 1],
             ]
         )
 
-    @cached_property
-    def _complete_P_matrix(self):
+    def direct_projection(self, world_vec, eps=1e-24):
+        """Transforms a point from 'world coordinates' (x_W, y_W, z_W) [m] -> 'image coordinates' (x_I, y_I) [px]
 
-        extrinsic = self.translation_matrix @ self.rotation_matrix
+        Args:
+            world_vec: Column vector (3,1) [m]
+            P: Rotation matrix (world -> image coordinates)
+            t: Translation vector (world -> image coordinates)
 
-        return self.camera_parameter_matrix @ extrinsic
+        Returns:
+            Image coordinate vector representing (x_I, y_I) pixel location of world coordinates (x_W, y_W, z_W)
+        """
+        P, t = self.projection_matrix()
+        img_vec = P @ world_vec + t
+        img_vec = img_vec[:2, :] / (img_vec[2, :] + eps)
 
-    @cached_property
-    def P_matrix(self):
-        # simplify P removing Y axis, since Y = 0
-        return np.delete(self._complete_P_matrix, 1, 1)
+        return img_vec
 
-    @lru_cache
-    def convert_point(self, u: int, v: int):
-        # [u] = [P00, P01, P02][X]
-        # [v] = [P10, P11, P12][Z]
-        # [1] = [P20, P21, P22][1]
+    def inverse_projection(self, img_x, img_y):
+        """Transforms a point from 'image coordinates' (x_I, y_I) [px] -> 'world (plane) coordinates' (x_W, y_W, z_W) [m] where z = 0
 
-        # 1. P00*X + P01*Z + P02 = u
-        # 2. P10*X + P11*Z + P12 = v
-        # 3. P20*X + P21*Z + P22 = 1
+        Args:
+            img_x: Image 'x' coordinate [px]
+            img_y: Image 'y' coordinate [px]
+            P: Rotation matrix (world -> image coordinates)
+            t: Translation vector (world -> image coordinates)
 
-        result = np.linalg.solve(self.P_matrix, [u, v, 1])
+        Returns:
+            World coordinate vector (x_W, y_W, z_W) [m] representing road plane location of image coordinate (x_I, y_I)
+        """
 
-        # result is [x, z]
-        result = (result / result[2])[:-1]
+        P, t = self.projection_matrix()
 
-        return result
+        # Inverted matrix
+        A = np.zeros((4, 4))
+        A[0:3, 0:3] = P
+        A[0, 3] = -img_x
+        A[1, 3] = -img_y
+        A[2, 3] = -1
+        A[3, 2] = 1
 
-    def convert_points(self, points: List[Tuple[float, float]]):
+        A_inv = np.linalg.inv(A)
 
-        # points is a list of [u, v]
+        # Column vector
+        t_vec = np.zeros((4, 1))
+        t_vec[0:3, :] = -t
 
-        # simillart to convert_matrix, but only with defined points
-        # it is much faster to do a batch call to np.linalg.solve
+        world_coord = A_inv @ t_vec
 
-        if len(points) == 0:
-            return []
-
-        result = np.linalg.solve(
-            self._P_matrix_array_cache(1, len(points)),
-            [[*point, 1] for point in points],
-        )
-        result = np.array([(r / r[2])[:-1] for r in result])
-
-        return result
-
-    @lru_cache(maxsize=15)
-    def _P_matrix_array_cache(self, u_size: int, v_size: int):
-        return [self.P_matrix for i in range(u_size * v_size)]
-
-    @lru_cache(maxsize=2)
-    def _b_matrix_array_cache(self, u_size: int, v_size: int):
-        return [[u, v, 1] for v in range(v_size) for u in range(u_size)]
-
-    def convert_matrix(self, u_size: int, v_size: int) -> np.ndarray:
-
-        # u_size: number of columns (image width)
-        # v_size: number of rows (image height)
-
-        result = np.linalg.solve(
-            self._P_matrix_array_cache(u_size, v_size),
-            self._b_matrix_array_cache(u_size, v_size),
-        )
-        # result is [x, z], but we have [x, z, w]
-        # to convert we need to use [x/w, z/w]
-        result = np.array([(r / r[2])[:-1] for r in result])
-
-        # each result is linked to a pixel in the image:
-        # [(u, v)] -> is walking the col number (u) and then the row number (v)
-        # [(0, 0), (1, 0), ... (u_size - 1, 0), (0, 1)... (u_size - 1, v_size - 1)]
-
-        # b == self._b_matrix_array_cache(u_size, v_size)
-        # b[u_size - 1] == [u_size - 1,   0,   1]
-        # b[u_size] == [0, 1, 1])
-
-        # which means that the result matrix is a flattened array
-        # of [[1280], [1280], ... (720 times) ... [1280]]
-
-        # reshape accordingly
-        result = np.reshape(result, (v_size, u_size, 2))
-
-        # result should be accessed as result[row][col] (row -> v; col -> u)
-        # ie: result[0][0], result[719][1279], result[v][u]
-        return result
-
-    def convert_image(self, image: np.ndarray):
-
-        new_image = np.zeros(image.shape, dtype=np.uint8)
-        center_x = new_image.shape[0] // 2
-        center_z = 0  # new_image.shape[1] // 2
-
-        # image.shape[0] is the height of the image (number of rows)
-        # image.shape[1] is the width of the image (number of columns)
-
-        results = self.convert_matrix(image.shape[1], image.shape[0])
-        u = 0  # column number (ie: 0 to 1280 (in 720p))
-        v = 0  # row number (ie: 0 to 720 (in 720p))
-
-        max_dist = results[0][0][1]
-        pixel_to_meter_ratio = self.camera_data.image_width / max_dist
-
-        for v in range(image.shape[0]):  # for v in heigth (0 to 720p)
-            for u in range(image.shape[1]):  # for u in col (0 to 1280)
-
-                # x is the row in new_image
-                # z is the column in new_image
-                x, z = results[v, u]
-
-                new_v = int(self.camera_data.fx * x + center_x)
-                new_u = int(z * pixel_to_meter_ratio + center_z)
-
-                if 0 <= new_v < new_image.shape[0] and 0 <= new_u < new_image.shape[1]:
-                    new_image[new_v, new_u] = image[v, u]
-
-        return self.filter(new_image)
-
-    def filter(self, image: np.ndarray):
-        v_mid = image.shape[0] // 2
-        for u in range(1, image.shape[1] - 1):
-            if (
-                image[v_mid, u, 0] == 0
-                and image[v_mid, u, 1] == 0
-                and image[v_mid, u, 2] == 0
-            ):
-                image[:, u] = image[:, u - 1]
-
-        return image
+        return world_coord[:3]
 
     def update_properties(self):
+        self.projection_matrix.cache_clear()
+        self.build_img_vecs.cache_clear()
 
-        # delete cached attributes
-        keys = [
-            "rotation_matrix",
-            "translation_matrix",
-            "camera_parameter_matrix",
-            "P_matrix",
-            "_complete_P_matrix",
-        ]
-        for key in keys:
-            self.__dict__.pop(key, None)
+    @lru_cache(maxsize=1)
+    def projection_matrix(self):
+        # Intrinsic parameter matrix
+        K = self.camera_parameter_matrix(self.camera_data)
 
-        # delete lru_cache
-        self._b_matrix_array_cache.cache_clear()
-        self._P_matrix_array_cache.cache_clear()
-        self.convert_point.cache_clear()
+        # Camera -> Road transformation (given)
+        R_cam2road = self.rotation_matrix(self.camera_data)
+        T_cam2road = np.array([self.camera_data.translation]).T
 
-    def __str__(self) -> str:
-        np.set_printoptions(precision=3)
-        np.set_printoptions(suppress=True)
+        # Road -> Camera transformation (wanted)
+        R_road2cam = R_cam2road.T
+        T_road2cam = -T_cam2road
 
-        return (
-            f"\n--------------\nRotation matrix: \n{self.rotation_matrix}"
-            + f"\n--------------\nTranslation matrix: \n{self.translation_matrix}"
-            + f"\n--------------\nCamera parameter matrix: \n{self.camera_parameter_matrix}"
-            + f"\n--------------\nT @ R (extrinsic): \n{self.translation_matrix @ self.rotation_matrix}"
-            + f"\n--------------\nComplete P matrix: \n{self._complete_P_matrix}"
-            + f"\n--------------\nP matrix: \n{self.P_matrix}"
+        # Camera -> Image transformation added to the 'K' matrix
+        # NOTE: The cam2img rotation matrix is inductively derived to perform the desired transformation
+        #       Camera frame       Image frame
+        #           x_cam     -->    -y_img
+        #           y_cam     -->    -z_img
+        #           z_cam     -->     x_img
+        #
+        #       {v_cam}^T R_cam2img = {v_img}^T
+        #
+        R_cam2img = np.array([[0, -1, 0], [0, 0, -1], [1, 0, 0]])
+        C = K @ R_cam2img
+
+        # Compute 'P' matrix and 't' vector mapping 'World coordinate Q' -> 'Image coordinate q_h'
+        P = C @ R_road2cam
+        t = C @ T_road2cam
+
+        return P, t
+
+    @lru_cache(maxsize=1)
+    def build_img_vecs(self):
+
+        x_min = -int(self.max_distance)
+        x_max = int(self.max_distance)
+        y_min = -int(self.max_distance)
+        y_max = int(self.max_distance)
+
+        res = 0.05
+
+        x_N = int((x_max - x_min) / res)
+        y_N = int((y_max - y_min) / res)
+
+        # Construct a matrix by concatenating column vectors, each representing a point in world coordinates
+        xs, ys = np.meshgrid(
+            np.linspace(x_min, x_max, x_N), np.linspace(y_min, y_max, y_N)
         )
+
+        xs = xs.flatten()
+        ys = ys.flatten()
+        zs = np.zeros(xs.shape)
+
+        world_vecs = np.array([xs, ys, zs])
+
+        # Project all 'world coordinate' vectors (X, Y, Z) into 'image coordinate' vectors (i, j) at once
+        img_vecs = self.direct_projection(world_vecs)
+
+        return np.reshape(img_vecs, (2, x_N, y_N))
+
+    def project(self, img):
+
+        max_point = np.array([[self.max_distance, 0.0, 0.0]]).T
+        img_vec = self.direct_projection(max_point)
+        img_y_min_limit = int(np.round(img_vec[1, 0]))
+
+        img_vecs = self.build_img_vecs()
+        x_N = img_vecs.shape[1]
+        y_N = img_vecs.shape[2]
+
+        # Draw the top-down image representation "pixel-by-pixel"
+        bev = np.zeros((x_N, y_N, 3), dtype=np.uint8)
+
+        IMG_W = self.camera_data.image_width
+        IMG_H = self.camera_data.image_height
+
+        for i in range(x_N):
+            for j in range(y_N):
+
+                # For each pixel (i, j), the correponding location in the image frame is obtained from the previous direct mapping operation
+                x_I = int(img_vecs[0, i, j])
+                y_I = int(img_vecs[1, i, j])
+
+                # Only map pixels within the given image frame
+                # 'img_y_min_limit' correspond to range limit 50m
+                if 0 <= x_I < IMG_W and img_y_min_limit < y_I < IMG_H:
+
+                    # Map image frame pixel to world coordinate pixel
+                    try:
+                        bev[y_N - j, x_N - i] = img[y_I, x_I]
+                    except:
+                        continue
+
+        return bev
+
+    @staticmethod
+    def distance_from_points(x, y):
+        return round(math.sqrt(x ** 2 + y ** 2), 2)
