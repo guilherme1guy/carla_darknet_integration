@@ -14,6 +14,22 @@ class Detection:
         self.confidence = confidence
         self.class_index = class_index
 
+        self.simple_distance = round(
+            DistanceCalculator.get_object_distance(
+                self.x1, self.y1, self.width, self.height
+            ),
+            2,
+        )
+
+        self.ipm_distance: Optional[float] = None
+        self.stereo_distance: Optional[float] = None
+        self.ipm_stereo_distance: Optional[float] = None
+
+        self.ipm_x: Optional[float] = None
+        self.ipm_y: Optional[float] = None
+
+        self.similar_detection: Optional["Detection"] = None
+
     @cached_property
     def bounding_box(self) -> List[int]:
         return [self.x1, self.y1, self.x2, self.y2]
@@ -27,15 +43,9 @@ class Detection:
         return abs(self.y2 - self.y1)
 
     @cached_property
-    def distance(self):
-        return DistanceCalculator.get_object_distance(
-            self.x1, self.x2, self.width, self.height
-        )
-
-    @cached_property
     def distance_pivot(self):
         # pivot is at the botton of the bounding box
-        return ((self.x1 + self.x2) / 2, self.y1)
+        return ((self.x1 + self.x2) / 2, self.y2)
 
     @staticmethod
     def from_output(output: List):
@@ -79,4 +89,4 @@ class Detection:
         return mmse
 
     def __str__(self):
-        return f"Detection(\n\tx1={self.x1}, y1={self.y1}, x2={self.x2}, y2={self.y2}, width={self.width}, height={self.height}, \n\tconfidence={self.confidence}, class_index={self.class_index},\n\t distance_pivot={self.distance_pivot}, \n\tipm_distance={self.ipm_distance}, ipm_x={self.ipm_x}, ipm_z={self.ipm_z}, \n\tsimple_distance={self.simple_distance})"
+        return f"Detection(\n\tx1={self.x1}, y1={self.y1}, x2={self.x2}, y2={self.y2}, width={self.width}, height={self.height}, \n\tconfidence={self.confidence}, class_index={self.class_index},\n\t distance_pivot={self.distance_pivot}, \n\tipm_distance={self.ipm_distance}, ipm_x={self.ipm_x}, ipm_y={self.ipm_y}, \n\tsimple_distance={self.simple_distance})"
