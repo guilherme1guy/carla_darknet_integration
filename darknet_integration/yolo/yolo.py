@@ -201,21 +201,24 @@ class YoloClassifier(object):
         Draws the bounding box over the objects that the model detects
         """
 
-        # as a personal choice you can modify this to get distance as accurate as possible:
-        # detection.x1 += 150
-        # detection.y1 += 100
-        # detection.x2 += 200
-        # detection.y2 += 200
-
         label = [
             f"{detection.x1}, {detection.y1}",
             f"{round(detection.confidence*100, 2)}%: {self.yolo_cfg.classes[detection.class_index]}",
-            f"({detection.ipm_x}x, {detection.ipm_y}y)",
-            f"simple: {detection.simple_distance} m",
-            f"ipm: {detection.ipm_distance} m",
-            f"stereo: {detection.stereo_distance} m",
-            f"s_ipm: {detection.ipm_stereo_distance} m",
         ]
+
+        if detection.y2 >= image.shape[0] // 2:
+            label += [
+                f"({detection.ipm_x}x, {detection.ipm_y}y)",
+                f"simple: {detection.simple_distance} m",
+                f"ipm: {detection.ipm_distance} m",
+            ]
+
+            if detection.similar_detection is not None:
+                label += [
+                    f"stereo: {detection.stereo_distance} m",
+                    f"s_ipm: {detection.ipm_stereo_distance} m",
+                ]
+
         color = self.yolo_cfg.colors[detection.class_index]
 
         # draw rectangle around detected object
@@ -227,26 +230,52 @@ class YoloClassifier(object):
             1,
         )
 
-        # draw rectangle for label
-        cv2.rectangle(
-            image,
-            (detection.x1 - 2, detection.y2 + 25 * len(label)),
-            (detection.x2 + 2, detection.y2),
-            color,
-            -1,
-        )
+        draw_above = detection.y1 - 25 * len(label) > 0
 
-        # write label to image
-        for idx, line in enumerate(label):
-            image = cv2.putText(
+        if draw_above:
+            # draw rectangle for label
+            cv2.rectangle(
                 image,
-                line,
-                (detection.x1 + 2, detection.y2 + 20 * (idx + 1)),
-                cv2.FONT_HERSHEY_PLAIN,
-                1,
-                [225, 255, 255],
-                1,
+                (detection.x1 - 2, detection.y1 - 25 * len(label)),
+                (detection.x2 + 2, detection.y1),
+                color,
+                -1,
             )
+
+            # write label to image
+            max_idx = len(label)
+            for idx, line in enumerate(label):
+                image = cv2.putText(
+                    image,
+                    line,
+                    (detection.x1 + 2, detection.y1 - 20 * (max_idx - idx)),
+                    cv2.FONT_HERSHEY_PLAIN,
+                    1,
+                    [225, 255, 255],
+                    1,
+                )
+
+        else:
+            # draw rectangle for label
+            cv2.rectangle(
+                image,
+                (detection.x1 - 2, detection.y2 + 25 * len(label)),
+                (detection.x2 + 2, detection.y2),
+                color,
+                -1,
+            )
+
+            # write label to image
+            for idx, line in enumerate(label):
+                image = cv2.putText(
+                    image,
+                    line,
+                    (detection.x1 + 2, detection.y2 + 20 * (idx - 1)),
+                    cv2.FONT_HERSHEY_PLAIN,
+                    1,
+                    [225, 255, 255],
+                    1,
+                )
 
         # returns image with bounding box and label drawn on it
         return image
