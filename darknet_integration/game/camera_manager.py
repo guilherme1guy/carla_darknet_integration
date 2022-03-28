@@ -133,6 +133,13 @@ class CameraManager(object):
                 0.0 * bound_y,
                 1.3 * bound_z,
                 attachment=Attachment.Rigid,
+                pitch=-2,
+            ),
+            TransformData(
+                0.8 * bound_x,
+                0.0 * bound_y,
+                1.3 * bound_z,
+                attachment=Attachment.Rigid,
                 pitch=-5,
             ),
             TransformData(
