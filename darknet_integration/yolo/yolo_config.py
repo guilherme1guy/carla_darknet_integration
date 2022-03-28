@@ -39,4 +39,4 @@ class YoloV3Config(YoloConfig):
 
         # set seed to get the same colors for each run
         np.random.seed(0)
-        self._colors = np.random.uniform(0, 255, size=(len(self._classes), 3))
+        self._colors = np.random.uniform(0, 120, size=(len(self._classes), 3))
