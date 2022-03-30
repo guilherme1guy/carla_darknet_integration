@@ -106,6 +106,7 @@ class HUD(object):
 
                 gt_dist.draw_line(world.world, d[1], d[2])
                 gt_dist.draw_bounding_box(world.world, vehicle)
+                gt_dist.draw_points(world.world, gt_dist.get_measuring_points(vehicle))
 
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
                 self._info_text.append(f"    {round(d[0], 2)}m {vehicle_type}")

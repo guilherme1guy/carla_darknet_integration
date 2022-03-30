@@ -3,7 +3,6 @@ from typing import List, Optional
 
 import carla
 import numpy as np
-from yolo.distance_measure.ipm_distance_calculator import IPMDistanceCalculator
 
 DRAW_DEBUG = False
 
@@ -65,7 +64,7 @@ class GroundTruthDistance:
             carla.Location(b.x, b.y, b.z),
             thickness=0.01,
             life_time=0.1,
-            color=carla.Color(r=0, g=255, b=0, a=50),
+            color=carla.Color(r=255, g=0, b=0, a=255),
             persistent_lines=False,
         )
 
@@ -79,13 +78,14 @@ class GroundTruthDistance:
 
         box: carla.BoundingBox = v.bounding_box
         box.location += transform.location
+        box.extent.y *= 0.9
 
         world.debug.draw_box(
             box,
             transform.rotation,
             thickness=0.01,
             life_time=0.1,
-            color=carla.Color(r=0, g=255, b=0, a=50),
+            color=carla.Color(r=255, g=255, b=0, a=255),
         )
 
     @staticmethod
@@ -97,6 +97,8 @@ class GroundTruthDistance:
             transform = v.get_transform()
 
         extent = v.bounding_box.extent
+        extent.y *= 0.9
+
         box_center = v.bounding_box.location
         transform_center = transform.location
         center = box_center + transform_center
@@ -115,13 +117,6 @@ class GroundTruthDistance:
         ]
 
         points = []
-
-        # obtain rotation matrix
-        # R = IPMDistanceCalculator._rotation_matrix(
-        #     transform.rotation.roll,
-        #     transform.rotation.pitch,
-        #     transform.rotation.yaw,
-        # )
 
         R = np.array(transform.get_inverse_matrix())
         R = R[:3, :3]
