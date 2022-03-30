@@ -39,11 +39,11 @@ class CameraData:
 
     @cached_property
     def fx(self):
-        return self.focus_length * self.ku
+        return self.focus_length  # * self.ku
 
     @cached_property
     def fy(self):
-        return self.focus_length * self.kv
+        return self.focus_length  # * self.kv
 
     @cached_property
     def kv(self):
@@ -67,15 +67,23 @@ class CameraData:
 
     @staticmethod
     def focus_from_hfov(hfov, width):
-        focus_len = width / (2.0 * math.tan(math.radians(hfov / 2))) / 100
+        focus_len = width / (2.0 * math.tan(math.radians(hfov / 2))) / 1
 
         return focus_len
 
     @staticmethod
     def hfov_from_focus(focus, width):
-        hfov = 2 * math.atan(width / (2 * focus * 100))
+        hfov = math.degrees(2 * math.atan(width / (2 * focus * 1)))
 
         return hfov
+
+    @staticmethod
+    def vfov_from_hfov(hfov, height, width):
+        hfov_rad = math.radians(hfov)
+        aspect_ratio = height / width
+        vfov = 2 * math.atan(math.tan(hfov_rad / 2) * aspect_ratio)
+
+        return math.degrees(vfov)
 
     @staticmethod
     def deg_rotation_to_rad(rotation):
@@ -94,8 +102,8 @@ class CameraData:
 
     def __str__(self) -> str:
         return f"CameraData(\
-            \translation={self.translation},\
-            \rotation={self.rotation},\
+            \ntranslation={self.translation},\
+            \nrotation={self.rotation},\
             \nrad_rotation={self.rad_rotation},\
             \nfocus_length={self.focus_length},\
             \nimage_width={self.image_width},\

@@ -1,6 +1,7 @@
 from functools import cached_property, lru_cache
 import math
 import numpy as np
+import cv2
 
 from .camera_data import CameraData
 
@@ -13,35 +14,51 @@ class IPMDistanceCalculator:
     def __init__(self, camera_data: CameraData) -> None:
 
         self.camera_data = camera_data
-        self.max_distance = 50.0
 
         self.update_properties()
 
     @staticmethod
     def rotation_matrix(camera_data: CameraData):
 
+        # this is ordered with respect to the unreal coordinate system
+        # https://github.com/carla-simulator/carla/issues/2915#issuecomment-744020598
+
         roll, pitch, yaw = camera_data.rad_rotation
 
-        si, sj, sk = np.sin(roll), np.sin(pitch), np.sin(yaw)
-        ci, cj, ck = np.cos(roll), np.cos(pitch), np.cos(yaw)
-        cc, cs = ci * ck, ci * sk
-        sc, ss = si * ck, si * sk
+        cos_pitch = math.cos(pitch)
+        sin_pitch = math.sin(pitch)
 
-        R = np.identity(3)
+        RY = np.array(
+            [
+                [cos_pitch, 0, -sin_pitch],
+                [0, 1, 0],
+                [sin_pitch, 0, cos_pitch],
+            ]
+        )
 
-        R[0, 0] = cj * ck
-        R[0, 1] = sj * sc - cs
-        R[0, 2] = sj * cc + ss
+        cos_roll = math.cos(roll)
+        sin_roll = math.sin(roll)
 
-        R[1, 0] = cj * sk
-        R[1, 1] = sj * ss + cc
-        R[1, 2] = sj * cs - sc
+        RX = np.array(
+            [
+                [1, 0, 0],
+                [0, cos_roll, sin_roll],
+                [0, -sin_roll, cos_roll],
+            ]
+        )
 
-        R[2, 0] = -sj
-        R[2, 1] = cj * si
-        R[2, 2] = cj * ci
+        cos_yaw = math.cos(yaw)
+        sin_yaw = math.sin(yaw)
 
-        return R
+        RZ = np.array(
+            [
+                [cos_yaw, -sin_yaw, 0],
+                [sin_yaw, cos_yaw, 0],
+                [0, 0, 1],
+            ]
+        )
+
+        return RZ @ RY @ RX
 
     @staticmethod
     def camera_parameter_matrix(camera_data: CameraData) -> np.ndarray:
@@ -113,6 +130,7 @@ class IPMDistanceCalculator:
     def update_properties(self):
         self.projection_matrix.cache_clear()
         self.build_img_vecs.cache_clear()
+        self.max_distance.cache_clear()
 
     @lru_cache(maxsize=1)
     def projection_matrix(self):
@@ -121,10 +139,10 @@ class IPMDistanceCalculator:
 
         # Camera -> Road transformation (given)
         R_cam2road = self.rotation_matrix(self.camera_data)
-        T_cam2road = np.array([self.camera_data.translation]).T
+        T_cam2road = np.transpose(np.array([self.camera_data.translation]))
 
         # Road -> Camera transformation (wanted)
-        R_road2cam = R_cam2road.T
+        R_road2cam = np.transpose(R_cam2road)
         T_road2cam = -T_cam2road
 
         # Camera -> Image transformation added to the 'K' matrix
@@ -146,17 +164,25 @@ class IPMDistanceCalculator:
         return P, t
 
     @lru_cache(maxsize=1)
+    def max_distance(self):
+
+        mid_point = self.inverse_projection(
+            self.camera_data.image_width / 2, self.camera_data.image_height * 0.55
+        ).flatten()
+
+        return abs(mid_point[0])
+
+    @lru_cache(maxsize=1)
     def build_img_vecs(self):
 
-        x_min = -int(self.max_distance)
-        x_max = int(self.max_distance)
-        y_min = -int(self.max_distance)
-        y_max = int(self.max_distance)
+        max_distance = self.max_distance()
+        x_min = -int(max_distance)
+        x_max = int(max_distance)
+        y_min = -int(max_distance)
+        y_max = int(max_distance)
 
-        res = 0.05
-
-        x_N = int((x_max - x_min) / res)
-        y_N = int((y_max - y_min) / res)
+        x_N = int((x_max - x_min) * 10)
+        y_N = int((y_max - y_min) * 10)
 
         # Construct a matrix by concatenating column vectors, each representing a point in world coordinates
         xs, ys = np.meshgrid(
@@ -176,7 +202,7 @@ class IPMDistanceCalculator:
 
     def project(self, img):
 
-        max_point = np.array([[self.max_distance, 0.0, 0.0]]).T
+        max_point = np.transpose(np.array([[self.max_distance(), 0.0, 0.0]]))
         img_vec = self.direct_projection(max_point)
         img_y_min_limit = int(np.round(img_vec[1, 0]))
 
@@ -207,7 +233,26 @@ class IPMDistanceCalculator:
                     except:
                         continue
 
-        return bev
+        return self.crop(bev)
+
+    @staticmethod
+    def crop(img):
+        try:
+            gray = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+            _, thresh = cv2.threshold(gray, 1, 255, cv2.THRESH_BINARY)
+            contours, hierarchy = cv2.findContours(
+                thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE
+            )
+            cnt = contours[0]
+            x, y, w, h = cv2.boundingRect(cnt)
+            crop = img[y : y + h, x : x + w]
+
+            if crop.shape[0] < 10 or crop.shape[1] < 10:
+                return img
+
+            return crop
+        except:
+            return img
 
     @staticmethod
     def distance_from_points(x, y):
