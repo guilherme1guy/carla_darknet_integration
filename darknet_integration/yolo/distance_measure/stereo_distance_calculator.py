@@ -11,4 +11,6 @@ class StereoDistance:
         tan = math.tan(math.radians(fov) / 2)
         delta_x = abs(x1 - x2)
 
-        return (camera_distance * image_width) / (2 * tan * delta_x)
+        distance = (camera_distance * image_width) / (2 * tan * delta_x)
+
+        return round(distance, 2)
