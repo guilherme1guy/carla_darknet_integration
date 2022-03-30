@@ -40,11 +40,11 @@ class CameraManager(object):
             "sensor.camera.rgb",
             cc.Raw,
             "Yolo Sensor Stereo",
-            (0, 0.1, 0),  # if 1 is a meter, 0.1 is 10 5cm
+            (0, 0.1, 0),  # if 1 is a meter, 0.1 is 10cm
             {
                 "fov": "85",
-                "image_size_x": "640",
-                "image_size_y": "360",
+                "image_size_x": "1280",
+                "image_size_y": "720",
             },
         ),
     ]
