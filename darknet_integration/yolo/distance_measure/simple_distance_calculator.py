@@ -22,4 +22,4 @@ class DistanceCalculator:
         # converts from inches (?) to m
         distance *= 2.54 / 10
 
-        return round(distance, 1)
+        return round(distance, 3)

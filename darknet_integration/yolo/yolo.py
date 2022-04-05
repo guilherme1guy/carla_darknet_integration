@@ -137,13 +137,13 @@ class YoloClassifier(object):
                         x2=detection.similar_detection.distance_pivot[0],
                     )
 
-                    detection.ipm_stereo_distance = StereoDistance.distance(
-                        camera_distance=ipm.camera_data.camera_distance[1],
-                        image_width=images[0].shape[1],
-                        fov=ipm.camera_data._fov,
-                        x1=detection.ipm_x,
-                        x2=detection.similar_detection.ipm_x,
-                    )
+                    # detection.ipm_stereo_distance = StereoDistance.distance(
+                    #     camera_distance=ipm.camera_data.camera_distance[1],
+                    #     image_width=images[0].shape[1],
+                    #     fov=ipm.camera_data._fov,
+                    #     x1=detection.ipm_x,
+                    #     x2=detection.similar_detection.ipm_x,
+                    # )
 
                     detection.ipm_distance = IPMDistanceCalculator.distance_from_points(
                         detection.ipm_x, detection.ipm_y
@@ -173,8 +173,8 @@ class YoloClassifier(object):
                 detection.ipm_distance = IPMDistanceCalculator.distance_from_points(
                     x, y
                 )
-                detection.ipm_x = round(x, 2)
-                detection.ipm_y = round(y, 2)
+                detection.ipm_x = round(x, 3)
+                detection.ipm_y = round(y, 3)
 
             self.draw_on_image(image, detection)
 
@@ -216,7 +216,6 @@ class YoloClassifier(object):
             if detection.similar_detection is not None:
                 label += [
                     f"stereo: {detection.stereo_distance} m",
-                    f"s_ipm: {detection.ipm_stereo_distance} m",
                 ]
 
         color = self.yolo_cfg.colors[detection.class_index]

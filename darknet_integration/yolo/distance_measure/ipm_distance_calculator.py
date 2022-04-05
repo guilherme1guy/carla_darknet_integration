@@ -256,4 +256,4 @@ class IPMDistanceCalculator:
 
     @staticmethod
     def distance_from_points(x, y):
-        return round(math.sqrt(x ** 2 + y ** 2), 2)
+        return round(math.sqrt(x ** 2 + y ** 2), 3)

@@ -89,4 +89,4 @@ class Detection:
         return mmse
 
     def __str__(self):
-        return f"Detection(\n\tx1={self.x1}, y1={self.y1}, x2={self.x2}, y2={self.y2}, width={self.width}, height={self.height}, \n\tconfidence={self.confidence}, class_index={self.class_index},\n\t distance_pivot={self.distance_pivot}, \n\tipm_distance={self.ipm_distance}, ipm_x={self.ipm_x}, ipm_y={self.ipm_y}, \n\tsimple_distance={self.simple_distance})"
+        return f"Detection(\n\tx1={self.x1}, y1={self.y1}, x2={self.x2}, y2={self.y2}, width={self.width}, height={self.height}, \n\tconfidence={self.confidence}, class_index={self.class_index},\n\t distance_pivot={self.distance_pivot}, \n\tipm_distance={self.ipm_distance}, ipm_x={self.ipm_x}, ipm_y={self.ipm_y}, \n\tsimple_distance={self.simple_distance}, \n\tstereo_distance={self.stereo_distance})"

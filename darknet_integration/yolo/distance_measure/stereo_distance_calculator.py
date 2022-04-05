@@ -13,4 +13,4 @@ class StereoDistance:
 
         distance = (camera_distance * image_width) / (2 * tan * delta_x)
 
-        return round(distance, 2)
+        return round(distance, 3)
