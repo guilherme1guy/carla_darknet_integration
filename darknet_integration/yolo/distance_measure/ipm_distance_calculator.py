@@ -139,7 +139,10 @@ class IPMDistanceCalculator:
 
         # Camera -> Road transformation (given)
         R_cam2road = self.rotation_matrix(self.camera_data)
-        T_cam2road = np.transpose(np.array([self.camera_data.translation]))
+        T_cam2road = np.transpose(
+            np.array([self.camera_data.translation])
+            + np.array(self.camera_data.camera_distance) / 2
+        )
 
         # Road -> Camera transformation (wanted)
         R_road2cam = np.transpose(R_cam2road)

@@ -12,6 +12,7 @@ class CameraData:
         image_width: int,
         image_height: int,
         skew: float = 0,
+        camera_distance: Tuple[float, float, float] = (0.0, 0.0, 0.0),
     ) -> None:
 
         # image size in pixels
@@ -35,7 +36,7 @@ class CameraData:
         self._fov = self.hfov_from_focus(self.focus_length, self.image_width)
         self.skew = skew
 
-        self.camera_distance = (0.0, 0.0, 0.0)
+        self.camera_distance = camera_distance
 
     @cached_property
     def fx(self):
