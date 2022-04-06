@@ -67,7 +67,7 @@ class YoloClassifier(object):
 
                 # object from the right picture should be closer to
                 # the left border of the image
-                if right_det.distance_pivot[0] >= left_det.distance_pivot[0]:
+                if right_det.distance_pivot[0] > left_det.distance_pivot[0]:
                     continue
 
                 candidates.append(right_det)
