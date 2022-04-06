@@ -54,7 +54,7 @@ class Detection:
             y1=int(output[1]),
             x2=int(output[2]),
             y2=int(output[3]),
-            confidence=output[4],
+            confidence=float(output[4]),
             class_index=int(output[5]),
         )
 

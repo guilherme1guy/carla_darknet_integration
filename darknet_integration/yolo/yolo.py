@@ -2,9 +2,9 @@ import math
 from threading import Lock
 from typing import List, Optional, Tuple
 
+import torch
 import cv2
 import numpy as np
-from pytorchyolo import detect, models
 
 from yolo.detection import Detection
 from yolo.distance_measure.ipm_distance_calculator import IPMDistanceCalculator
@@ -18,11 +18,9 @@ cuda_lock = Lock()
 
 
 class YoloClassifier(object):
-    def __init__(self, yolo_cfg: YoloConfig, conf_threshold=0.7, nms_threshold=0.6):
+    def __init__(self, yolo_cfg: YoloConfig):
 
         self.yolo_cfg = yolo_cfg
-        self.conf_threshold = conf_threshold
-        self.nms_threshold = nms_threshold
 
         self.model = None
         self._load_model()
@@ -30,32 +28,22 @@ class YoloClassifier(object):
     def detect_objects(self, images: List[np.ndarray]) -> List[List]:
 
         outputs = []
+        detection_fn = self.yolo_cfg.get_detection_fn(self.model)
 
         for image in images:
             with cuda_lock:
 
-                output = detect.detect_image(
-                    self.model,
-                    image,
-                    conf_thres=self.conf_threshold,
-                    nms_thres=self.nms_threshold,
-                )
-
+                output = detection_fn(image)
                 outputs.append(output)
 
         return outputs
 
     def _load_model(self):
-
-        self.model = models.load_model(
-            self.yolo_cfg.cfg_file, self.yolo_cfg.weights_file
-        )
+        self.model = self.yolo_cfg.get_model()
 
     def _detections_from_outputs(self, image_outputs) -> List[List[Detection]]:
-        return [
-            [Detection.from_output(element) for element in output]
-            for output in image_outputs
-        ]
+        fn = self.yolo_cfg.get_output_conversion_fn()
+        return fn(image_outputs)
 
     def _map_similar_detections(
         self,
@@ -79,7 +67,7 @@ class YoloClassifier(object):
 
                 # object from the right picture should be closer to
                 # the left border of the image
-                if right_det.x1 > left_det.x1:
+                if right_det.distance_pivot[0] >= left_det.distance_pivot[0]:
                     continue
 
                 candidates.append(right_det)

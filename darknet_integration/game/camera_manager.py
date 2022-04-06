@@ -21,7 +21,7 @@ class CameraManager(object):
             cc.Raw,
             "Yolo Sensor",
             {
-                "fov": "85",
+                "fov": "72",
                 "image_size_x": "1280",
                 "image_size_y": "720",
             },
@@ -31,7 +31,7 @@ class CameraManager(object):
             cc.Raw,
             "IPM Sensor",
             {
-                "fov": "85",
+                "fov": "72",
                 "image_size_x": "640",
                 "image_size_y": "360",
             },
@@ -42,7 +42,7 @@ class CameraManager(object):
             "Yolo Sensor Stereo",
             (0, 0.0635, 0),  # if 1 is a meter, 0.1 is 10cm
             {
-                "fov": "85",
+                "fov": "72",
                 "image_size_x": "1280",
                 "image_size_y": "720",
             },
