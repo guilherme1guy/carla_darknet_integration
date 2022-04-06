@@ -152,3 +152,4 @@ test_results/
 test_data/local/
 *.ipynb
 test.py
+*.pt
