@@ -4,7 +4,7 @@ from queue import Empty
 
 import numpy as np
 from game.sensor_info import SensorInfo
-from utils import image_to_pygame
+from local_utils import image_to_pygame
 from yolo.distance_measure.camera_data import CameraData
 from yolo.distance_measure.ipm_distance_calculator import IPMDistanceCalculator
 

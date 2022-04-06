@@ -3,7 +3,7 @@ import math
 import os
 
 import pygame
-from utils import *
+from local_utils import *
 
 from gui.fading_text import FadingText
 from gui.help_text import HelpText

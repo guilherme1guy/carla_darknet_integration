@@ -5,7 +5,7 @@ from typing import List, Tuple
 import cv2
 import numpy as np
 from sensors.ipm_sensor import IPMSensor
-from utils import image_to_pygame
+from local_utils import image_to_pygame
 from yolo.detection import Detection
 from yolo.distance_measure.camera_data import CameraData
 from yolo.distance_measure.ipm_distance_calculator import IPMDistanceCalculator

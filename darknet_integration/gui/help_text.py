@@ -1,6 +1,6 @@
 import pygame
 
-from utils import get_doc
+from local_utils import get_doc
 
 
 class HelpText(object):

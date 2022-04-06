@@ -9,7 +9,11 @@ from sensors.imu_sensor import IMUSensor
 from sensors.lane_invasion_sensor import LaneInvasionSensor
 from sensors.radar_sensor import RadarSensor
 
-from utils import find_weather_presets, get_actor_blueprints, get_actor_display_name
+from local_utils import (
+    find_weather_presets,
+    get_actor_blueprints,
+    get_actor_display_name,
+)
 from game.camera_manager import CameraManager
 
 
