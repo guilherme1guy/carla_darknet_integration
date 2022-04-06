@@ -29,6 +29,16 @@ class CameraManager(object):
         SensorAbstraction(
             "sensor.camera.rgb",
             cc.Raw,
+            "YoloV5 Sensor",
+            {
+                "fov": "72",
+                "image_size_x": "1280",
+                "image_size_y": "720",
+            },
+        ),
+        SensorAbstraction(
+            "sensor.camera.rgb",
+            cc.Raw,
             "IPM Sensor",
             {
                 "fov": "72",
@@ -40,6 +50,17 @@ class CameraManager(object):
             "sensor.camera.rgb",
             cc.Raw,
             "Yolo Sensor Stereo",
+            (0, 0.0635, 0),  # if 1 is a meter, 0.1 is 10cm
+            {
+                "fov": "72",
+                "image_size_x": "1280",
+                "image_size_y": "720",
+            },
+        ),
+        StereoSensorAbstraction(
+            "sensor.camera.rgb",
+            cc.Raw,
+            "YoloV5 Sensor Stereo",
             (0, 0.0635, 0),  # if 1 is a meter, 0.1 is 10cm
             {
                 "fov": "72",
@@ -225,7 +246,8 @@ class CameraManager(object):
         self.set_sensor(self.sensor)
 
     def stop(self):
-        self.camera_parser.yolo.stop()
+        self.camera_parser.yolov3.stop()
+        self.camera_parser.yolov5.stop()
         self.camera_parser.ipm.stop()
 
     def destroy(self):

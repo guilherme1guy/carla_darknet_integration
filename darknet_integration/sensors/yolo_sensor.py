@@ -10,7 +10,7 @@ from yolo.detection import Detection
 from yolo.distance_measure.camera_data import CameraData
 from yolo.distance_measure.ipm_distance_calculator import IPMDistanceCalculator
 from yolo.yolo import YoloClassifier
-from yolo.yolo_config import YoloV3Config
+from yolo.yolo_config import YoloConfig, YoloV3Config, YoloV5Config
 
 from sensors.threaded_sensor import ThreadedSensor
 
@@ -27,7 +27,13 @@ class YoloSensor(ThreadedSensor):
 
     THREAD_COUNT = 1
 
-    def __init__(self):
+    def __init__(self, yolo_version="v3"):
+
+        # default is YoloV3
+        if yolo_version == "v3":
+            self.yolo_cfg: YoloConfig = YoloV3Config()
+        else:
+            self.yolo_cfg: YoloConfig = YoloV5Config()
 
         self.results: list[Tuple[List[np.ndarray], List[List[Detection]]]] = []
         super().__init__()
@@ -38,7 +44,7 @@ class YoloSensor(ThreadedSensor):
         # everytime. It is important to have thread_id, even if not used
         # in the function, as it will be used by lru_cache to cache a classifier
         # for each thread based on it
-        return YoloClassifier(YoloV3Config())
+        return YoloClassifier(self.yolo_cfg)
 
     @lru_cache
     def get_ipm(self, thread_id):

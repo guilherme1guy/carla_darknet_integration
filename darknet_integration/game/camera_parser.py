@@ -15,7 +15,9 @@ class CameraParser:
         self.dim: Tuple[int, int] = dim
         self.lidar_range = lidar_range
 
-        self.yolo = YoloSensor()
+        self.yolov3 = YoloSensor()
+        self.yolov5 = YoloSensor(yolo_version="v5")
+
         self.ipm = IPMSensor()
 
         self.recording = False
@@ -157,11 +159,19 @@ class CameraParser:
             new_surface = CameraParser._parse_optical_flow(image)
 
         else:
+
+            yolo_obj = None
+            if "Yolo" in sensor_name:
+                if "YoloV5" in sensor_name:
+                    yolo_obj = self.yolov5
+                else:
+                    yolo_obj = self.yolov3
+
             new_surface = CameraParser._parse_rgb_camera(
                 [image],
                 color_convert,
                 sensor_info,
-                (self.yolo if "Yolo" in sensor_name else None),
+                yolo_obj,
                 (self.ipm if "IPM" in sensor_name else None),
             )
 
@@ -185,9 +195,16 @@ class CameraParser:
         if not self:
             return
 
+        yolo_obj = None
+        if "Yolo" in sensor_name:
+            if "YoloV5" in sensor_name:
+                yolo_obj = self.yolov5
+            else:
+                yolo_obj = self.yolov3
+
         # this methoud is only used in yolo mode
         new_surface = CameraParser._parse_rgb_camera(
-            images, color_convert, sensors_info[0], self.yolo
+            images, color_convert, sensors_info[0], yolo_obj
         )
 
         self.set_surface(new_surface)
