@@ -46,12 +46,19 @@ class YoloConfig(ABC):
 
 
 class YoloV3Config(YoloConfig):
-    def __init__(self, conf_threshold=0.7, nms_threshold=0.6):
+    def __init__(
+        self,
+        conf_threshold=0.7,
+        nms_threshold=0.6,
+        cfg_file="models/yolov3.cfg",
+        weights_file="models/yolov3.weights",
+        classes_file="models/coco.names",
+    ):
         super().__init__(conf_threshold, nms_threshold)
 
-        self._cfgfile = "models/yolov3.cfg"
-        self._weightsfile = "models/yolov3.weights"
-        self._classes = load_classes("models/coco.names")
+        self._cfgfile = cfg_file
+        self._weightsfile = weights_file
+        self._classes = load_classes(classes_file)
 
         # set seed to get the same colors for each run
         np.random.seed(0)
@@ -80,10 +87,15 @@ class YoloV3Config(YoloConfig):
 
 
 class YoloV5Config(YoloConfig):
-    def __init__(self, conf_threshold=0.7, nms_threshold=0.6):
-        super().__init__(conf_threshold, nms_threshold)
+    def __init__(
+        self, conf_threshold=0.7, nms_threshold=0.6, classes_file="models/coco.names"
+    ):
+        super().__init__(
+            conf_threshold,
+            nms_threshold,
+        )
 
-        self._classes = load_classes("models/coco.names")
+        self._classes = load_classes(classes_file)
 
         # set seed to get the same colors for each run
         np.random.seed(0)
