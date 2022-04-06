@@ -23,7 +23,7 @@ class Detection:
 
         self.ipm_distance: Optional[float] = None
         self.stereo_distance: Optional[float] = None
-        self.ipm_stereo_distance: Optional[float] = None
+        self.adv_stereo_distance: Optional[float] = None
 
         self.ipm_x: Optional[float] = None
         self.ipm_y: Optional[float] = None
@@ -89,4 +89,4 @@ class Detection:
         return mmse
 
     def __str__(self):
-        return f"Detection(\n\tx1={self.x1}, y1={self.y1}, x2={self.x2}, y2={self.y2}, width={self.width}, height={self.height}, \n\tconfidence={self.confidence}, class_index={self.class_index},\n\t distance_pivot={self.distance_pivot}, \n\tipm_distance={self.ipm_distance}, ipm_x={self.ipm_x}, ipm_y={self.ipm_y}, \n\tsimple_distance={self.simple_distance}, \n\tstereo_distance={self.stereo_distance})"
+        return f"Detection(\n\tx1={self.x1}, y1={self.y1}, x2={self.x2}, y2={self.y2}, width={self.width}, height={self.height}, \n\tconfidence={self.confidence}, class_index={self.class_index},\n\t distance_pivot={self.distance_pivot}, \n\tipm_distance={self.ipm_distance}, ipm_x={self.ipm_x}, ipm_y={self.ipm_y}, \n\tsimple_distance={self.simple_distance}, \n\tstereo_distance={self.stereo_distance}, \n\tadv_stereo_distance={self.adv_stereo_distance}, \n\tsimilar_detection={self.similar_detection is not None})"

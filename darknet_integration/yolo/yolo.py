@@ -9,6 +9,9 @@ from pytorchyolo import detect, models
 from yolo.detection import Detection
 from yolo.distance_measure.ipm_distance_calculator import IPMDistanceCalculator
 from yolo.distance_measure.stereo_distance_calculator import StereoDistance
+from yolo.distance_measure.advanced_stereo_distance_calculator import (
+    AdvancedStereoDistance,
+)
 from yolo.yolo_config import YoloConfig
 
 cuda_lock = Lock()
@@ -127,6 +130,10 @@ class YoloClassifier(object):
 
             for detection in image_detections:
 
+                detection.ipm_distance = IPMDistanceCalculator.distance_from_points(
+                    detection.ipm_x, detection.ipm_y
+                )
+
                 if ipm and detection.similar_detection:
 
                     detection.stereo_distance = StereoDistance.distance(
@@ -137,16 +144,12 @@ class YoloClassifier(object):
                         x2=detection.similar_detection.distance_pivot[0],
                     )
 
-                    # detection.ipm_stereo_distance = StereoDistance.distance(
-                    #     camera_distance=ipm.camera_data.camera_distance[1],
-                    #     image_width=images[0].shape[1],
-                    #     fov=ipm.camera_data._fov,
-                    #     x1=detection.ipm_x,
-                    #     x2=detection.similar_detection.ipm_x,
-                    # )
-
-                    detection.ipm_distance = IPMDistanceCalculator.distance_from_points(
-                        detection.ipm_x, detection.ipm_y
+                    detection.adv_stereo_distance = AdvancedStereoDistance.distance(
+                        camera_distance=ipm.camera_data.camera_distance[1],
+                        image_width=images[0].shape[1],
+                        fov=ipm.camera_data._fov,
+                        x1=detection.distance_pivot[0],
+                        x2=detection.similar_detection.distance_pivot[0],
                     )
 
                 self.draw_on_image(images[image_index], detection)
@@ -216,6 +219,7 @@ class YoloClassifier(object):
             if detection.similar_detection is not None:
                 label += [
                     f"stereo: {detection.stereo_distance} m",
+                    f"adv_stereo: {detection.adv_stereo_distance} m",
                 ]
 
         color = self.yolo_cfg.colors[detection.class_index]
