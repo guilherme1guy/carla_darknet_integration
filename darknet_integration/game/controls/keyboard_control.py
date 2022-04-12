@@ -39,6 +39,7 @@ from pygame.locals import (
     K_w,
     K_x,
     K_z,
+    K_u,
 )
 
 
@@ -61,7 +62,7 @@ class KeyboardControl(object):
         self._steer_cache = 0.0
         world.hud.notification("Press 'H' or '?' for help.", seconds=4.0)
 
-    def parse_events(self, client, world, clock, sync_mode):
+    def parse_events(self, client, world, clock, sync_mode, dataset_generator):
         if isinstance(self._control, carla.VehicleControl):
             current_lights = self._lights
         for event in pygame.event.get():
@@ -99,6 +100,8 @@ class KeyboardControl(object):
                     world.next_weather()
                 elif event.key == K_g:
                     world.toggle_radar()
+                elif event.key == K_u:
+                    dataset_generator.generate_dataset()
                 elif event.key == K_BACKQUOTE:
                     world.camera_manager.next_sensor()
                 elif event.key == K_n:

@@ -5,6 +5,7 @@ import numpy as np
 import pygame
 from sensors.ipm_sensor import IPMSensor
 from sensors.yolo_sensor import YoloSensor
+import time
 
 from game.sensor_info import SensorInfo
 
@@ -212,3 +213,4 @@ class CameraParser:
         if self.recording:
             for index, image in enumerate(images):
                 image.save_to_disk(f"_out/{'%08d' % image.frame}_{index}")
+                time.sleep(0.01)
