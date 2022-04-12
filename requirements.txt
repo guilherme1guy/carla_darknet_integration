@@ -6,6 +6,8 @@ pygame==2.0.1
 pytorchyolo==1.6.2
 numpy==1.22.2
 
+# YoloV4
+wf-pytorch-yolo-v4
 
 # YoloV5
 # Base ----------------------------------------
