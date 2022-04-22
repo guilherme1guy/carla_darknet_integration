@@ -60,7 +60,7 @@ class CameraManager(object):
             "sensor.camera.rgb",
             cc.Raw,
             "YoloV3 Sensor Stereo",
-            (0, 0.0635, 0),  # if 1 is a meter, 0.1 is 10cm
+            (0, 0.6, 0),  # if 1 is a meter, 0.1 is 10cm
             {
                 "fov": "72",
                 "image_size_x": "1280",
