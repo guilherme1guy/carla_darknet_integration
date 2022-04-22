@@ -17,6 +17,7 @@ class CameraParser:
         self.lidar_range = lidar_range
 
         self.yolov3 = YoloSensor()
+        self.yolov4 = YoloSensor(yolo_version="v4")
         self.yolov5 = YoloSensor(yolo_version="v5")
 
         self.ipm = IPMSensor()
@@ -165,6 +166,8 @@ class CameraParser:
             if "Yolo" in sensor_name:
                 if "YoloV5" in sensor_name:
                     yolo_obj = self.yolov5
+                elif "YoloV4" in sensor_name:
+                    yolo_obj = self.yolov4
                 else:
                     yolo_obj = self.yolov3
 
@@ -200,6 +203,8 @@ class CameraParser:
         if "Yolo" in sensor_name:
             if "YoloV5" in sensor_name:
                 yolo_obj = self.yolov5
+            elif "YoloV4" in sensor_name:
+                yolo_obj = self.yolov4
             else:
                 yolo_obj = self.yolov3
 

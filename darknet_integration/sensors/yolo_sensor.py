@@ -10,7 +10,7 @@ from yolo.detection import Detection
 from yolo.distance_measure.camera_data import CameraData
 from yolo.distance_measure.ipm_distance_calculator import IPMDistanceCalculator
 from yolo.yolo import YoloClassifier
-from yolo.yolo_config import YoloConfig, YoloV3Config, YoloV5Config
+from yolo.yolo_config import YoloConfig, YoloV3Config, YoloV5Config, YoloV4Config
 
 from sensors.threaded_sensor import ThreadedSensor
 
@@ -32,8 +32,12 @@ class YoloSensor(ThreadedSensor):
         # default is YoloV3
         if yolo_version == "v3":
             self.yolo_cfg: YoloConfig = YoloV3Config()
-        else:
+        elif yolo_version == "v4":
+            self.yolo_cfg: YoloConfig = YoloV4Config()
+        elif yolo_version == "v5":
             self.yolo_cfg: YoloConfig = YoloV5Config()
+        else:
+            raise ValueError(f"Unknown yolo version: {yolo_version}")
 
         self.results: list[Tuple[List[np.ndarray], List[List[Detection]]]] = []
         super().__init__()
