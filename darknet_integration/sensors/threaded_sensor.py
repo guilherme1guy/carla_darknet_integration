@@ -47,7 +47,11 @@ class ThreadedSensor(abc.ABC):
 
         # worker main loop
         while self.run:
-            self.work(thread_id)
+            try:
+                self.work(thread_id)
+            except Exception as e:
+                print(e)
+                # log exception and keep working
 
         print(f"[{str(self)}_{thread_id}] Finished thread")
 
