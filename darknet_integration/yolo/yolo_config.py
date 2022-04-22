@@ -152,7 +152,7 @@ class YoloV4Config(YoloConfig):
                 element[2] * self.img_shape[1],
                 element[3] * self.img_shape[0],
                 element[4],
-                element[5],
+                element[6],
             ]
             return Detection.from_output(conv_element)
 
