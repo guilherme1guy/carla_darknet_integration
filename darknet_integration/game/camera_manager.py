@@ -19,7 +19,17 @@ class CameraManager(object):
         SensorAbstraction(
             "sensor.camera.rgb",
             cc.Raw,
-            "Yolo Sensor",
+            "YoloV3 Sensor",
+            {
+                "fov": "72",
+                "image_size_x": "1280",
+                "image_size_y": "720",
+            },
+        ),
+        SensorAbstraction(
+            "sensor.camera.rgb",
+            cc.Raw,
+            "YoloV4 Sensor",
             {
                 "fov": "72",
                 "image_size_x": "1280",
@@ -49,7 +59,7 @@ class CameraManager(object):
         StereoSensorAbstraction(
             "sensor.camera.rgb",
             cc.Raw,
-            "Yolo Sensor Stereo",
+            "YoloV3 Sensor Stereo",
             (0, 0.0635, 0),  # if 1 is a meter, 0.1 is 10cm
             {
                 "fov": "72",
@@ -60,8 +70,19 @@ class CameraManager(object):
         StereoSensorAbstraction(
             "sensor.camera.rgb",
             cc.Raw,
+            "YoloV4 Sensor Stereo",
+            (0, 0.6, 0),  # if 1 is a meter, 0.1 is 10cm
+            {
+                "fov": "72",
+                "image_size_x": "1280",
+                "image_size_y": "720",
+            },
+        ),
+        StereoSensorAbstraction(
+            "sensor.camera.rgb",
+            cc.Raw,
             "YoloV5 Sensor Stereo",
-            (0, 0.0635, 0),  # if 1 is a meter, 0.1 is 10cm
+            (0, 0.6, 0),  # if 1 is a meter, 0.1 is 10cm
             {
                 "fov": "72",
                 "image_size_x": "1280",
@@ -137,58 +158,58 @@ class CameraManager(object):
 
         return [
             TransformData(
+                0.8 * bound_x,
+                0.0 * bound_y,
+                1.3 * bound_z,
+                attachment=Attachment.Rigid,
+            ),
+            TransformData(
                 -2.0 * bound_x,
                 0.0 * bound_y,
                 2.0 * bound_z,
                 pitch=8.0,
                 attachment=Attachment.SpringArm,
             ),
-            TransformData(
-                0.8 * bound_x,
-                0.0 * bound_y,
-                1.3 * bound_z,
-                attachment=Attachment.Rigid,
-            ),
-            TransformData(
-                0.8 * bound_x,
-                0.0 * bound_y,
-                1.3 * bound_z,
-                attachment=Attachment.Rigid,
-                pitch=-2,
-            ),
-            TransformData(
-                0.8 * bound_x,
-                0.0 * bound_y,
-                1.3 * bound_z,
-                attachment=Attachment.Rigid,
-                pitch=-5,
-            ),
-            TransformData(
-                0.8 * bound_x,
-                0.0 * bound_y,
-                1.3 * bound_z,
-                attachment=Attachment.Rigid,
-                pitch=-25,
-            ),
-            TransformData(
-                1.9 * bound_x,
-                1.0 * bound_y,
-                1.2 * bound_z,
-                attachment=Attachment.SpringArm,
-            ),
-            TransformData(
-                -2.8 * bound_x,
-                0.0 * bound_y,
-                4.6 * bound_z,
-                pitch=6.0,
-                attachment=Attachment.SpringArm,
-            ),
-            TransformData(
-                -1.0 * bound_x,
-                -1.0 * bound_y,
-                0.4 * bound_z,
-                attachment=Attachment.Rigid,
-            ),
+            # TransformData(
+            #     0.8 * bound_x,
+            #     0.0 * bound_y,
+            #     1.3 * bound_z,
+            #     attachment=Attachment.Rigid,
+            #     pitch=-2,
+            # ),
+            # TransformData(
+            #     0.8 * bound_x,
+            #     0.0 * bound_y,
+            #     1.3 * bound_z,
+            #     attachment=Attachment.Rigid,
+            #     pitch=-5,
+            # ),
+            # TransformData(
+            #     0.8 * bound_x,
+            #     0.0 * bound_y,
+            #     1.3 * bound_z,
+            #     attachment=Attachment.Rigid,
+            #     pitch=-25,
+            # ),
+            # TransformData(
+            #     1.9 * bound_x,
+            #     1.0 * bound_y,
+            #     1.2 * bound_z,
+            #     attachment=Attachment.SpringArm,
+            # ),
+            # TransformData(
+            #     -2.8 * bound_x,
+            #     0.0 * bound_y,
+            #     4.6 * bound_z,
+            #     pitch=6.0,
+            #     attachment=Attachment.SpringArm,
+            # ),
+            # TransformData(
+            #     -1.0 * bound_x,
+            #     -1.0 * bound_y,
+            #     0.4 * bound_z,
+            #     attachment=Attachment.Rigid,
+            # ),
         ]
 
     def toggle_camera(self):
