@@ -3,4 +3,4 @@ from .gui import *
 from .yolo import *
 from .sensors import *
 
-from .utils import *
+from .local_utils import *

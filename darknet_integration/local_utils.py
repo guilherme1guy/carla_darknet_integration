@@ -2,6 +2,11 @@ import carla
 import re
 
 
+import cv2
+import numpy as np
+import pygame
+
+
 def find_weather_presets():
     rgx = re.compile(".+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)")
     name = lambda x: " ".join(m.group(0) for m in rgx.finditer(x))
@@ -87,3 +92,35 @@ Use ARROWS or WASD keys for control.
     H/?          : toggle help
     ESC          : quit
 """
+
+
+def load_image_file(filename):
+    image = cv2.imread(filename)
+
+    return image
+
+
+def load_image_pygame(surface):
+    # based on https://gist.github.com/jpanganiban/3844261
+    # and https://stackoverflow.com/questions/53101698/how-to-convert-a-pygame-image-to-open-cv-image
+    # and https://www.reddit.com/r/pygame/comments/gldeqs/pygamesurfarrayarray3d_to_image_cv2/
+
+    view = pygame.surfarray.array3d(surface)
+    view = view.transpose([1, 0, 2])
+    img_bgr = cv2.cvtColor(view, cv2.COLOR_RGB2BGR)
+
+    return img_bgr
+
+
+def numpy_to_cv2(image):
+    im = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    im = np.rot90(np.fliplr(im))
+
+    return im
+
+
+def image_to_pygame(image) -> pygame.Surface:
+
+    surface = pygame.surfarray.make_surface(numpy_to_cv2(image))
+
+    return surface

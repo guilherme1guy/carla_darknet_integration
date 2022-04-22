@@ -3,7 +3,7 @@ import math
 import weakref
 
 import carla
-from utils import *
+from local_utils import *
 
 
 class CollisionSensor(object):

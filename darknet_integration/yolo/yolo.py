@@ -1,161 +1,272 @@
-#############################################
-# Object detection - YOLO - OpenCV
-# Author : Arun Ponnusamy   (July 16, 2018)
-# Website : http://www.arunponnusamy.com
-############################################
+import math
+from threading import Lock
+from typing import List, Optional, Tuple
 
-
+import torch
 import cv2
 import numpy as np
-import pygame
 
-from threading import Lock
+from yolo.detection import Detection
+from yolo.distance_measure.ipm_distance_calculator import IPMDistanceCalculator
+from yolo.distance_measure.stereo_distance_calculator import StereoDistance
+from yolo.distance_measure.advanced_stereo_distance_calculator import (
+    AdvancedStereoDistance,
+)
+from yolo.yolo_config import YoloConfig
 
-
-class YoloDetectionResult:
-    def __init__(self, image, conf_threshold, nms_threshold):
-        self.class_ids = []
-        self.confidences = []
-        self.boxes = []
-        self.conf_threshold = conf_threshold
-        self.nms_threshold = nms_threshold
-        self.image = image
+cuda_lock = Lock()
 
 
 class YoloClassifier(object):
-    def __init__(self, config, weights, classes):
-        # config -> filename of config file
-        # weights -> filename of weights file
-        # classes -> filename of classes file
+    def __init__(self, yolo_cfg: YoloConfig):
 
-        self.config = config
-        self.weights = weights
+        self.yolo_cfg = yolo_cfg
 
-        with open(classes, "r") as f:
-            self.classes = [line.strip() for line in f.readlines()]
+        self.model = None
+        self._load_model()
 
-        self._lock = Lock()
-        self._net = cv2.dnn.readNet(self.weights, self.config)
-        self._net.setPreferableBackend(cv2.dnn.DNN_BACKEND_CUDA)
-        self._net.setPreferableTarget(cv2.dnn.DNN_TARGET_CUDA)
+    def detect_objects(self, images: List[np.ndarray]) -> List[List]:
 
-        self.layers_names = self._net.getLayerNames()
-        self.output_layers = [
-            self.layers_names[i - 1] for i in self._net.getUnconnectedOutLayers()
-        ]
+        outputs = []
+        detection_fn = self.yolo_cfg.get_detection_fn(self.model)
 
-        np.random.seed(0)
-        self._COLORS = np.random.uniform(0, 255, size=(len(self.classes), 3))
+        for image in images:
+            with cuda_lock:
 
-    def detect_objects(self, img):
-        # https://towardsdatascience.com/object-detection-using-yolov3-and-opencv-19ee0792a420
-        blob = cv2.dnn.blobFromImage(
-            img,
-            scalefactor=1 / 255,
-            size=(416, 416),
-            mean=(0, 0, 0),
-            # scalefactor=0.00392,
-            # size=(320, 320),
-            swapRB=True,
-            crop=False,
-        )
+                output = detection_fn(image)
+                outputs.append(output)
 
-        with self._lock:
-            self._net.setInput(blob)
-            outputs = self._net.forward(self.output_layers)
+        return outputs
 
-        return blob, outputs
+    def _load_model(self):
+        self.model = self.yolo_cfg.get_model()
 
-    def get_box_dimensions(self, outputs, height, width, conf_threshold):
+    def _detections_from_outputs(self, image_outputs) -> List[List[Detection]]:
+        fn = self.yolo_cfg.get_output_conversion_fn()
+        return fn(image_outputs)
 
-        boxes = []
-        confs = []
-        class_ids = []
+    def _map_similar_detections(
+        self,
+        left_image_detections: List[Detection],
+        right_image_detections: List[Detection],
+    ):
 
-        for output in outputs:
-            for detect in output:
+        for left_det in left_image_detections:
 
-                scores = detect[5:]
-                class_id = np.argmax(scores)
-                conf = scores[class_id]
+            candidates = []
 
-                if conf > conf_threshold:
+            for right_det in right_image_detections:
 
-                    center_x = int(detect[0] * width)
-                    center_y = int(detect[1] * height)
+                # object should not be used by other
+                if right_det.similar_detection != None:
+                    continue
 
-                    w = int(detect[2] * width)
-                    h = int(detect[3] * height)
-                    x = int(center_x - w / 2)
-                    y = int(center_y - h / 2)
+                # objects should be from the same class
+                if right_det.class_index != left_det.class_index:
+                    continue
 
-                    boxes.append([x, y, w, h])
-                    confs.append(float(conf))
-                    class_ids.append(class_id)
+                # object from the right picture should be closer to
+                # the left border of the image
+                if right_det.distance_pivot[0] > left_det.distance_pivot[0]:
+                    continue
 
-        return boxes, confs, class_ids
+                candidates.append(right_det)
 
-    def classify(self, image) -> YoloDetectionResult:
+            if len(candidates) > 0:
+                left_det.similar_detection = left_det.most_similar(candidates)
+                # set inverse relation
+                left_det.similar_detection.similar_detection = left_det
+
+    def _stereo_classify(
+        self,
+        images: List[np.ndarray],
+        detections: List[List[Detection]],
+        ipm: Optional[IPMDistanceCalculator] = None,
+    ) -> Tuple[List[np.ndarray], List[List[Detection]]]:
+
+        # as calculating the ipm for each point is expensive, but
+        # in a batch is not so much, we will first calculate all ipm
+        # results
+
+        if ipm:
+            ipm_results = [
+                list(
+                    map(
+                        lambda x: ipm.inverse_projection(*x.distance_pivot),
+                        detections[0],
+                    )
+                ),
+                list(
+                    map(
+                        lambda x: ipm.inverse_projection(*x.distance_pivot),
+                        detections[1],
+                    )
+                ),
+            ]
+
+            # insert ipm position into detections
+            for image_index, image_detections in enumerate(detections):
+                for index, detection in enumerate(image_detections):
+                    point = ipm_results[image_index][index].flatten()
+                    detection.ipm_x = round(point[0], 2)
+                    detection.ipm_y = round(point[1], 2)
+
+        # map similar detections
+        self._map_similar_detections(detections[0], detections[1])
+
+        for image_index, image_detections in enumerate(detections):
+
+            for detection in image_detections:
+
+                detection.ipm_distance = IPMDistanceCalculator.distance_from_points(
+                    detection.ipm_x, detection.ipm_y
+                )
+
+                if ipm and detection.similar_detection:
+
+                    detection.stereo_distance = StereoDistance.distance(
+                        camera_distance=ipm.camera_data.camera_distance[1],
+                        image_width=images[0].shape[1],
+                        fov=ipm.camera_data._fov,
+                        x1=detection.distance_pivot[0],
+                        x2=detection.similar_detection.distance_pivot[0],
+                    )
+
+                    detection.adv_stereo_distance = AdvancedStereoDistance.distance(
+                        camera_distance=ipm.camera_data.camera_distance[1],
+                        image_width=images[0].shape[1],
+                        fov=ipm.camera_data._fov,
+                        x1=detection.distance_pivot[0],
+                        x2=detection.similar_detection.distance_pivot[0],
+                    )
+
+                self.draw_on_image(images[image_index], detection)
+
+        return images, detections
+
+    def _classify(
+        self,
+        image: np.ndarray,
+        detections: List[Detection],
+        ipm: Optional[IPMDistanceCalculator] = None,
+    ) -> Tuple[List[np.ndarray], List[List[Detection]]]:
+
+        ipm_results = []
+        if ipm:
+            ipm_results = [
+                ipm.inverse_projection(*x.distance_pivot).flatten() for x in detections
+            ]
+
+        for index, detection in enumerate(detections):
+
+            if ipm:
+                x, y, _ = ipm_results[index]
+                detection.ipm_distance = IPMDistanceCalculator.distance_from_points(
+                    x, y
+                )
+                detection.ipm_x = round(x, 3)
+                detection.ipm_y = round(y, 3)
+
+            self.draw_on_image(image, detection)
+
+        return [image], [detections]
+
+    def classify(
+        self, images: List[np.ndarray], ipm: Optional[IPMDistanceCalculator] = None
+    ) -> Tuple[List[np.ndarray], List[List[Detection]]]:
         # image must be cv2 image
 
-        height = image.shape[0]
-        width = image.shape[1]
+        # Output is a list with a numpy array for each image
+        # with the following format:
+        # [[x1, y1, x2, y2, confidence, class]]
+        outputs = self.detect_objects(images)
+        detections = self._detections_from_outputs(outputs)
 
-        _, outs = self.detect_objects(image)
+        if len(outputs) > 1:
+            return self._stereo_classify(images, detections, ipm)
+        else:
+            return self._classify(images[0], detections[0], ipm)
 
-        result = YoloDetectionResult(image, conf_threshold=0.5, nms_threshold=0.4)
+    def draw_on_image(self, image, detection: Detection):
+        """
+        Draws the bounding box over the objects that the model detects
+        """
 
-        result.boxes, result.confidences, result.class_ids = self.get_box_dimensions(
-            outs, height, width, result.conf_threshold
+        label = [
+            f"{detection.x1}, {detection.y1}",
+            f"{round(detection.confidence*100, 2)}%: {self.yolo_cfg.classes[detection.class_index]}",
+        ]
+
+        if detection.y2 >= image.shape[0] // 2:
+            label += [
+                f"({detection.ipm_x}x, {detection.ipm_y}y)",
+                f"simple: {detection.simple_distance} m",
+                f"ipm: {detection.ipm_distance} m",
+            ]
+
+            if detection.similar_detection is not None:
+                label += [
+                    f"stereo: {detection.stereo_distance} m",
+                    f"adv_stereo: {detection.adv_stereo_distance} m",
+                ]
+
+        color = self.yolo_cfg.colors[detection.class_index]
+
+        # draw rectangle around detected object
+        image = cv2.rectangle(
+            image,
+            (detection.x1, detection.y1),
+            (detection.x2, detection.y2),
+            color,
+            1,
         )
 
-        return result
+        draw_above = detection.y1 - 25 * len(label) > 0
 
-    def draw(self, detection: YoloDetectionResult):
+        if draw_above:
+            # draw rectangle for label
+            cv2.rectangle(
+                image,
+                (detection.x1 - 2, detection.y1 - 25 * len(label)),
+                (detection.x2 + 2, detection.y1),
+                color,
+                -1,
+            )
 
-        indexes = cv2.dnn.NMSBoxes(
-            detection.boxes,
-            detection.confidences,
-            detection.conf_threshold,
-            detection.nms_threshold,
-        )
+            # write label to image
+            max_idx = len(label)
+            for idx, line in enumerate(label):
+                image = cv2.putText(
+                    image,
+                    line,
+                    (detection.x1 + 2, detection.y1 - 20 * (max_idx - idx)),
+                    cv2.FONT_HERSHEY_PLAIN,
+                    1,
+                    [225, 255, 255],
+                    1,
+                )
 
-        font = cv2.FONT_HERSHEY_PLAIN
+        else:
+            # draw rectangle for label
+            cv2.rectangle(
+                image,
+                (detection.x1 - 2, detection.y2 + 25 * len(label)),
+                (detection.x2 + 2, detection.y2),
+                color,
+                -1,
+            )
 
-        for i in range(len(detection.boxes)):
-            if i in indexes:
+            # write label to image
+            for idx, line in enumerate(label):
+                image = cv2.putText(
+                    image,
+                    line,
+                    (detection.x1 + 2, detection.y2 + 20 * (idx - 1)),
+                    cv2.FONT_HERSHEY_PLAIN,
+                    1,
+                    [225, 255, 255],
+                    1,
+                )
 
-                x, y, w, h = detection.boxes[i]
-
-                label = str(self.classes[detection.class_ids[i]])
-                color = self._COLORS[detection.class_ids[i]]
-
-                cv2.rectangle(detection.image, (x, y), (x + w, y + h), color, 2)
-                cv2.putText(detection.image, label, (x, y - 5), font, 1, color, 1)
-
-    @staticmethod
-    def load_image_file(filename):
-        image = cv2.imread(filename)
-
+        # returns image with bounding box and label drawn on it
         return image
-
-    # based on https://gist.github.com/jpanganiban/3844261
-    # and https://stackoverflow.com/questions/53101698/how-to-convert-a-pygame-image-to-open-cv-image
-    # and https://www.reddit.com/r/pygame/comments/gldeqs/pygamesurfarrayarray3d_to_image_cv2/
-    @staticmethod
-    def load_image_pygame(surface):
-
-        view = pygame.surfarray.array3d(surface)
-        view = view.transpose([1, 0, 2])
-        img_bgr = cv2.cvtColor(view, cv2.COLOR_RGB2BGR)
-
-        return img_bgr
-
-    @staticmethod
-    def image_to_pygame(image):
-
-        im = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-        im = np.rot90(np.fliplr(im))
-        surface = pygame.surfarray.make_surface(im)
-
-        return surface

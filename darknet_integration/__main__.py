@@ -16,6 +16,8 @@ import glob
 import os
 import sys
 
+from game.sensor_info import SensorInfo
+
 # ==============================================================================
 # -- find carla module ---------------------------------------------------------
 # ==============================================================================
@@ -54,7 +56,9 @@ import pygame
 from game.world import World
 from game.controls.keyboard_control import KeyboardControl
 from gui.hud import HUD
-from utils import get_doc
+from local_utils import get_doc
+
+from dataset_generator import DatasetGenerator
 
 
 def game_loop(args):
@@ -65,9 +69,24 @@ def game_loop(args):
 
     try:
         client = carla.Client(args.host, args.port)
-        client.set_timeout(20.0)
+        client.set_timeout(5.0)
+
+        # Use this to set parameters when generating a dataset
+        # client.load_world("Town04")
+        # weather = carla.WeatherParameters()
+        # weather.cloudiness = 0
+        # weather.precipitation = 0
+        # weather.precipitation_deposits = 0
+        # weather.wind_intensity = 0
+        # weather.sun_azimuth_angle = 0
+        # weather.sun_altitude_angle = -75
+        # weather.wetness = 0
+        # weather.fog_distance = 0
+        # weather.fog_density = 0
 
         sim_world = client.get_world()
+
+        # sim_world.set_weather(weather)
         if args.sync:
             original_settings = sim_world.get_settings()
             settings = sim_world.get_settings()
@@ -94,20 +113,24 @@ def game_loop(args):
         hud = HUD(args.width, args.height)
         world = World(sim_world, hud, args)
         controller = KeyboardControl(world, args.autopilot)
-
         if args.sync:
             sim_world.tick()
         else:
             sim_world.wait_for_tick()
 
         clock = pygame.time.Clock()
+
+        dataset_generator = DatasetGenerator(world)
         while True:
             if args.sync:
                 sim_world.tick()
             clock.tick_busy_loop(60)
-            if controller.parse_events(client, world, clock, args.sync):
-                world.camera_manager.yolo.stop()
+            if controller.parse_events(
+                client, world, clock, args.sync, dataset_generator
+            ):
+                world.camera_manager.stop()
                 return
+            # SensorInfo.get_sensor_info(world.camera_manager.sensor._sensor)
             world.tick(clock)
             world.render(display)
             pygame.display.flip()

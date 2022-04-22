@@ -1,6 +1,44 @@
-numpy==1.21.2
 carla==0.9.12
 matplotlib==3.4.3
 # opencv-python==4.5.5
 # opencv must be compiled locally for cuda, check README.md
 pygame==2.0.1
+pytorchyolo==1.6.2
+numpy==1.22.2
+
+# YoloV4
+wf-pytorch-yolo-v4
+
+# YoloV5
+# Base ----------------------------------------
+Pillow>=7.1.2
+PyYAML>=5.3.1
+requests>=2.23.0
+scipy>=1.4.1
+torch>=1.7.0
+torchvision>=0.8.1
+tqdm>=4.41.0
+
+# Logging -------------------------------------
+tensorboard>=2.4.1
+# wandb
+
+# Plotting ------------------------------------
+pandas>=1.1.4
+seaborn>=0.11.0
+
+# Export --------------------------------------
+# coremltools>=4.1  # CoreML export
+# onnx>=1.9.0  # ONNX export
+# onnx-simplifier>=0.3.6  # ONNX simplifier
+# scikit-learn==0.19.2  # CoreML quantization
+# tensorflow>=2.4.1  # TFLite export
+# tensorflowjs>=3.9.0  # TF.js export
+# openvino-dev  # OpenVINO export
+
+# Extras --------------------------------------
+# albumentations>=1.0.3
+# Cython  # for pycocotools https://github.com/cocodataset/cocoapi/issues/172
+# pycocotools>=2.0  # COCO mAP
+# roboflow
+thop  # FLOPs computation

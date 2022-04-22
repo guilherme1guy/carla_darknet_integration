@@ -3,10 +3,11 @@ import math
 import os
 
 import pygame
-from utils import *
+from local_utils import *
 
 from gui.fading_text import FadingText
 from gui.help_text import HelpText
+from gui.ground_truth_distance import GroundTruthDistance
 
 
 class HUD(object):
@@ -61,7 +62,7 @@ class HUD(object):
             % datetime.timedelta(seconds=int(self.simulation_time)),
             "",
             "Speed:   % 15.0f km/h" % (3.6 * math.sqrt(v.x ** 2 + v.y ** 2 + v.z ** 2)),
-            u"Compass:% 17.0f\N{DEGREE SIGN} % 2s" % (compass, heading),
+            "Compass:% 17.0f\N{DEGREE SIGN} % 2s" % (compass, heading),
             "Accelero: (%5.1f,%5.1f,%5.1f)" % (world.imu_sensor.accelerometer),
             "Gyroscop: (%5.1f,%5.1f,%5.1f)" % (world.imu_sensor.gyroscope),
             "Location:% 20s" % ("(% 5.1f, % 5.1f)" % (t.location.x, t.location.y)),
@@ -91,21 +92,24 @@ class HUD(object):
         ]
         if len(vehicles) > 1:
             self._info_text += ["Nearby vehicles:"]
-            distance = lambda l: math.sqrt(
-                (l.x - t.location.x) ** 2
-                + (l.y - t.location.y) ** 2
-                + (l.z - t.location.z) ** 2
-            )
+
+            gt_dist = GroundTruthDistance(world.player)
+            gt_dist.draw_bounding_box(world.world, world.player)
+            gt_dist.draw_points(world.world, gt_dist.ego_points)
+
             vehicles = [
-                (distance(x.get_location()), x)
-                for x in vehicles
-                if x.id != world.player.id
+                (gt_dist.distance(x), x) for x in vehicles if x.id != world.player.id
             ]
-            for d, vehicle in sorted(vehicles, key=lambda vehicles: vehicles[0]):
-                if d > 200.0:
+            for d, vehicle in sorted(vehicles, key=lambda v: v[0][0]):
+                if d[0] > 200.0:
                     break
+
+                gt_dist.draw_line(world.world, d[1], d[2])
+                gt_dist.draw_bounding_box(world.world, vehicle)
+                gt_dist.draw_points(world.world, gt_dist.get_measuring_points(vehicle))
+
                 vehicle_type = get_actor_display_name(vehicle, truncate=22)
-                self._info_text.append("% 4dm %s" % (d, vehicle_type))
+                self._info_text.append(f"    {round(d[0], 2)}m {vehicle_type}")
 
     def toggle_info(self):
         self._show_info = not self._show_info

@@ -146,3 +146,11 @@ _out*/
 
 #models folder
 models/
+
+typings/
+test_results/
+test_data/local/
+*.ipynb
+test.py
+*.pt
+dataset/
