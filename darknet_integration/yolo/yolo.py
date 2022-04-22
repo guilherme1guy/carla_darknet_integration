@@ -124,20 +124,27 @@ class YoloClassifier(object):
 
                 if ipm and detection.similar_detection:
 
+                    points = (
+                        detection.distance_pivot[0],
+                        detection.similar_detection.distance_pivot[0],
+                    )
+                    min_x = min(points)
+                    max_x = max(points)
+
                     detection.stereo_distance = StereoDistance.distance(
                         camera_distance=ipm.camera_data.camera_distance[1],
                         image_width=images[0].shape[1],
                         fov=ipm.camera_data._fov,
-                        x1=detection.distance_pivot[0],
-                        x2=detection.similar_detection.distance_pivot[0],
+                        x1=min_x,
+                        x2=max_x,
                     )
 
                     detection.adv_stereo_distance = AdvancedStereoDistance.distance(
                         camera_distance=ipm.camera_data.camera_distance[1],
                         image_width=images[0].shape[1],
                         fov=ipm.camera_data._fov,
-                        x1=detection.distance_pivot[0],
-                        x2=detection.similar_detection.distance_pivot[0],
+                        x1=max_x,
+                        x2=min_x,
                     )
 
                 self.draw_on_image(images[image_index], detection)
