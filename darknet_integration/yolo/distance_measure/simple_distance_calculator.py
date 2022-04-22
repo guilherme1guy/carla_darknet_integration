@@ -18,8 +18,11 @@ class DistanceCalculator:
         # https://github.com/paul-pias/Object-Detection-and-Distance-Measurement/issues/3#issuecomment-581238883
         # the '* 1000' is for unit selection
         # the +3 is for defining a minimum distance bias (possibly to avoid a dead zone in the image?)
-        distance = (360 * 3.14) / (width + height * 360) * 1000 + 3
-        # converts from inches (?) to m
-        distance *= 2.54 / 10
+        try:
+            distance = (360 * 3.14) / (width + height * 360) * 1000 + 3
+            # converts from inches (?) to m
+            distance *= 2.54 / 10
 
-        return round(distance, 3)
+            return round(distance, 3)
+        except:
+            return 0
