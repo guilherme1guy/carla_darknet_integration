@@ -23,6 +23,7 @@ class AdvancedStereoDistance:
     @staticmethod
     def _distance(A, w1, w2, H1, H2, P1, P2):
 
+        # A: camera distance
         # w1, w2: camera view angle (hFOV)
         # H1, H2: number of horizontal pixels (image width)
         # P1 = W - detection_x
@@ -36,8 +37,8 @@ class AdvancedStereoDistance:
 
         # we dont need to call math.radians for fi and teta
         # since all parameters are already in radians
-        fi = P1 * w1 / H1 + B1
-        teta = P2 * w2 / H2 + B2
+        fi = P1 * (w1 / H1) + B1
+        teta = P2 * (w2 / H2) + B2
         alpha = math.radians(180) - (teta + fi)
 
         h = A * math.sin(teta) * math.sin(fi) / math.sin(alpha)
